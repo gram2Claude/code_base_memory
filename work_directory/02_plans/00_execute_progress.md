@@ -35,3 +35,18 @@
 ## Ключевые решения по ходу (лог)
 
 - Ветка oleg checkout'нута от main@76e4451.
+- CBM-1 done-факт: срез 3222 файла/22МБ закоммичен (38a478b); .claude/ среза был gitignored
+  апстримом — нейтрализован физическим mv (CBM-5, d55f423).
+- CBM-2 (41b2d5c): scarf удалён из package.json+lock; F4 --end-of-options; npx → локальный
+  движок во всех agent-facing файлах (mcp.json×7, hooks×3, skills .md×19, setup.ts fallback,
+  analyze.ts/resources.ts, тесты обновлены). Остался 1 КОММЕНТАРИЙ в setup.ts (не вызов).
+- CBM-3 ход: Node 24.15 = целевая версия. npm ci требует --legacy-peer-deps (npm 11 строже
+  npm 10 апстрима; конфликт peer optional-грамматик). tree-sitter 0.25 без prebuild под
+  ABI Node 24 → node-gyp → НЕТ MSVC (риск подтвердился) → ставлю VS Build Tools 2022
+  (choco, detached) — вотчер ждёт cl.exe.
+- Архитектурное решение: файловые операции режимов скила вынесены в детерминированный
+  tools/memory_code.ps1 (ставится в <ENGINE>/skill/); SKILL.md делегирует ему. Это сделало
+  CBM-17 настоящим тестом: смоук 18/18 PASS (вкл. идемпотентность и выживание чужих хуков).
+- PS 5.1 требует UTF-8 BOM для .ps1 с кириллицей — добавлен во все наши скрипты.
+- CBM-19/20: вопрос «Активировать кодовую память?» + code_memory (true/false/deferred,
+  greenfield-отложка) добавлены в фазы init/publish workflow_global_plan.

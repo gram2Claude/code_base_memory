@@ -1,0 +1,41 @@
+# Сборка нативного движка ontoindex для Windows (CBM-3).
+# Зачем: на целевой машине нет прав администратора → нет MSVC → node-gyp не может
+# собрать tree-sitter (npm-пакет 0.25 публикуется без prebuilds). Раннер windows-2022 —
+# та же ОС, что хост (Windows Server 2022), Node 24 → бинарно совместимый bundle.
+name: build-engine
+on:
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: npm ci (native builds, legacy-peer-deps)
+        working-directory: ontoindex/ontoindex
+        run: npm ci --legacy-peer-deps --no-fund --no-audit
+      - name: build dist (tsc + super-dispatch validation)
+        working-directory: ontoindex/ontoindex
+        run: npm run build
+      - name: grammar inventory (t03 done-criteria)
+        working-directory: ontoindex/ontoindex
+        run: |
+          Get-ChildItem -Recurse node_modules -Filter '*.node' -ErrorAction SilentlyContinue |
+            ForEach-Object { $_.FullName.Replace((Get-Location).Path + '\', '') } |
+            Tee-Object grammar-inventory.txt
+      - name: pack bundle (dereference file:-symlinks)
+        working-directory: ontoindex/ontoindex
+        run: tar -czLf engine-bundle.tgz node_modules dist grammar-inventory.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: engine-bundle
+          path: ontoindex/ontoindex/engine-bundle.tgz
+          retention-days: 14
+          compression-level: 0
