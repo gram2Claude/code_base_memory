@@ -35,6 +35,10 @@ try {
     Assert (@($set.hooks.SessionStart).Count -eq 1) 'on: чужой SessionStart жив'
     Assert ((Get-Content CLAUDE.md -Raw) -match 'MEMORY_CODE:BEGIN') 'on: блок в CLAUDE.md'
     Assert ((Get-Content .gitignore) -contains '.ontoindex/') 'on: .gitignore'
+    Assert (Test-Path .ontoindexignore) 'on: .ontoindexignore создан'
+    $mcpBom = [IO.File]::ReadAllBytes((Resolve-Path .mcp.json))[0] -ne 0xEF
+    Assert $mcpBom 'on: .mcp.json без BOM'
+    Assert ($mcp.mcpServers.ontoindex.env.ONTOINDEX_DISABLE_SEMANTIC -eq '1') 'on: semantic gate в env'
 
     Write-Host "== on повторно (идемпотентность) =="
     & $MC -Mode on -Project $Tmp -SkipAnalyze | Out-Null

@@ -21,6 +21,16 @@ if ($Prebuilt) {
     }
 }
 Write-Host "[1/5] Копирование среза -> $EngineDir"
+# Guard перед robocopy /MIR (ревью, major #3): зеркалирование стирает лишнее в целевом —
+# принимаем только путь, оканчивающийся на \ontoindex, и либо пустой/новый, либо НАШ
+# (маркер VERSION.txt или структура ontoindex/package.json).
+$EngineFull = [System.IO.Path]::GetFullPath($EngineDir)
+if ($EngineFull -notmatch '\\ontoindex\\?$') { throw "Отказ: EngineDir должен оканчиваться на \ontoindex (получено: $EngineFull)" }
+if (Test-Path -LiteralPath $EngineFull) {
+    $owned = (Test-Path (Join-Path $EngineFull 'VERSION.txt')) -or (Test-Path (Join-Path $EngineFull 'ontoindex\package.json'))
+    $empty = -not (Get-ChildItem -LiteralPath $EngineFull -Force | Select-Object -First 1)
+    if (-not ($owned -or $empty)) { throw "Отказ: $EngineFull существует и не похож на наш движок (нет VERSION.txt) — /MIR стер бы чужие данные" }
+}
 New-Item -ItemType Directory -Force $EngineDir | Out-Null
 # /MIR с /XD: исключённые каталоги не копируются И не удаляются в целевом — повторный
 # запуск не сносит установленные node_modules и собранный dist.
@@ -63,9 +73,12 @@ Copy-Item (Join-Path $RepoRoot 'skills\memory_code_active\SKILL.md') (Join-Path 
 Write-Host "[4/5] Глобальный шим ontoindex + маркер версии"
 $NpmBin = (& npm prefix -g).Trim()
 $CliJs = Join-Path $EngineDir 'ontoindex\dist\cli\index.js'
+# Шим через %USERPROFILE% (ревью, minor #4): развёрнутый путь в -Encoding ascii ломался бы
+# на кириллическом имени пользователя.
+$CliRel = $CliJs.Replace($env:USERPROFILE, '%USERPROFILE%')
 @"
 @echo off
-node "$CliJs" %*
+node "$CliRel" %*
 "@ | Out-File -FilePath (Join-Path $NpmBin 'ontoindex.cmd') -Encoding ascii
 @"
 snapshot: $SnapshotRef (+ CBM-2 security patches, CBM-5 neutralized agent configs)

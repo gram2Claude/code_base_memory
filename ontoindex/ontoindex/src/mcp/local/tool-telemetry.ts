@@ -27,6 +27,8 @@ async function rotateIfNeeded(): Promise<void> {
 }
 
 export function recordToolCall(record: TelemetryRecord): void {
+  // CBM opt-out: local telemetry (~/.ontoindex/telemetry.jsonl) is disableable.
+  if (process.env.ONTOINDEX_TOOL_TELEMETRY === '0') return;
   // Fire-and-forget: telemetry must never fail a tool call
   void (async () => {
     try {

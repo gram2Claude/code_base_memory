@@ -189,26 +189,30 @@ function finishAugment(paths) {
 function runOntoIndexCli(args, cwd, timeout) {
   const isWin = process.platform === 'win32';
 
-  // Detect whether 'ontoindex' is on PATH (cheap check, no execution)
-  let useDirectBinary = false;
-  try {
-    const which = spawnSync(isWin ? 'where' : 'which', ['ontoindex'], {
-      encoding: 'utf-8',
-      timeout: 3000,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    useDirectBinary = which.status === 0;
-  } catch {
-    /* not on PATH */
-  }
-
-  if (useDirectBinary) {
-    return spawnSync(isWin ? 'ontoindex.cmd' : 'ontoindex', args, {
-      encoding: 'utf-8',
-      timeout,
-      cwd,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
+  // CBM review fix (major #1): на Windows НЕ зовём ontoindex.cmd напрямую —
+  // spawnSync('.cmd') без shell на Node >=20.12/24 возвращает EINVAL
+  // (фикс CVE-2024-27980), и хук молча умирал. Везде, где можно, идём через
+  // node + js-движок; PATH-бинарь используем только вне Windows.
+  if (!isWin) {
+    let useDirectBinary = false;
+    try {
+      const which = spawnSync('which', ['ontoindex'], {
+        encoding: 'utf-8',
+        timeout: 3000,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+      useDirectBinary = which.status === 0;
+    } catch {
+      /* not on PATH */
+    }
+    if (useDirectBinary) {
+      return spawnSync('ontoindex', args, {
+        encoding: 'utf-8',
+        timeout,
+        cwd,
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
+    }
   }
   // CBM-2: network npx fallback removed — fall back to the vendored local
   // engine (ONTOINDEX_CLI_JS overrides; default: ~/.claude/tools/ontoindex).

@@ -1,4 +1,4 @@
-﻿{
+{
     "mcpServers":  {
                        "ontoindex":  {
                                          "command":  "node",
@@ -9,7 +9,12 @@
                                          "env":  {
                                                      "ONTOINDEX_MCP_PROJECT_CWD":  "C:/Users/Oleg/Desktop/Alex/03_claude/17_code_base_memory",
                                                      "ONTOINDEX_MCP_REPO":  "C:/Users/Oleg/Desktop/Alex/03_claude/17_code_base_memory",
-                                                     "ONTOINDEX_MCP_AUTO_ANALYZE":  "0"
+                                                     "ONTOINDEX_MCP_AUTO_ANALYZE":  "0",
+                                                     "ONTOINDEX_DISABLE_SEMANTIC":  "1",
+                                                     "ONTOINDEX_QUERY_LOG":  "0",
+                                                     "ONTOINDEX_TOOL_TELEMETRY":  "0",
+                                                     "HF_HUB_OFFLINE":  "1",
+                                                     "TRANSFORMERS_OFFLINE":  "1"
                                                  }
                                      }
                    }

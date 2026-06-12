@@ -9,7 +9,7 @@ param(
     [switch]$SkipAnalyze   # для смоука: on без построения индекса
 )
 $ErrorActionPreference = 'Stop'
-$Project = (Resolve-Path $Project).Path
+$Project = (Resolve-Path -LiteralPath $Project).Path
 $EngineDir = if ($env:ONTOINDEX_HOME) { $env:ONTOINDEX_HOME } else { Join-Path $env:USERPROFILE '.claude\tools\ontoindex' }
 $CliJs   = Join-Path $EngineDir 'ontoindex\dist\cli\index.js'
 $HookJs  = Join-Path $EngineDir 'ontoindex-claude-plugin\hooks\ontoindex-hook.js'
@@ -22,13 +22,22 @@ $IdxDir  = Join-Path $Project '.ontoindex'
 $MarkBeg = '<!-- MEMORY_CODE:BEGIN'
 $MarkEnd = '<!-- MEMORY_CODE:END -->'
 
+# Все записи — UTF-8 БЕЗ BOM ([IO.File]): PS 5.1 Out-File -Encoding utf8 ставит BOM,
+# а BOM в .mcp.json/settings.json может ломать JSON-парсеры (ревью, major #2).
+$Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+function Write-Text($path, $text) {
+    $dir = Split-Path $path -Parent
+    if ($dir -and -not (Test-Path -LiteralPath $dir)) { New-Item -ItemType Directory -Force $dir | Out-Null }
+    [System.IO.File]::WriteAllText($path, $text, $Utf8NoBom)
+}
 function Read-Json($path) {
-    if (Test-Path $path) { Get-Content $path -Raw -Encoding utf8 | ConvertFrom-Json } else { $null }
+    if (Test-Path -LiteralPath $path) {
+        $raw = [System.IO.File]::ReadAllText($path)  # ReadAllText сам срезает BOM
+        $raw | ConvertFrom-Json
+    } else { $null }
 }
 function Write-Json($path, $obj) {
-    $dir = Split-Path $path -Parent
-    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Force $dir | Out-Null }
-    ($obj | ConvertTo-Json -Depth 20) | Out-File $path -Encoding utf8
+    Write-Text $path (($obj | ConvertTo-Json -Depth 20) + "`n")
 }
 function Invoke-Analyze {
     if (-not (Test-Path $CliJs)) { throw "Движок не установлен: $CliJs (запусти tools\install.ps1)" }
@@ -43,25 +52,29 @@ function Remove-UpstreamBlock {
     # run-analyze.ts безусловно дописывает в CLAUDE.md блок <!-- ontoindex:start/end -->
     # (ссылается на НЕустановленные skill-файлы); канонические инструкции — наш блок
     # MEMORY_CODE, апстримовский вычищаем.
-    if (Test-Path $ClaudeMd) {
-        $md = Get-Content $ClaudeMd -Raw -Encoding utf8
+    if (Test-Path -LiteralPath $ClaudeMd) {
+        $md = [System.IO.File]::ReadAllText($ClaudeMd)
         $clean = [regex]::Replace($md, '(?ms)^<!-- ontoindex:start -->.*?^<!-- ontoindex:end -->[ \t]*(\r?\n)?', '')
-        if ($clean -ne $md) { $clean.TrimEnd() + "`n" | Out-File $ClaudeMd -Encoding utf8 }
+        if ($clean -ne $md) { Write-Text $ClaudeMd ($clean.TrimEnd() + "`n") }
     }
     foreach ($f in @('AGENTS.md')) {
         $p = Join-Path $Project $f
-        if (Test-Path $p) {
-            $md = Get-Content $p -Raw -Encoding utf8
+        if (Test-Path -LiteralPath $p) {
+            $md = [System.IO.File]::ReadAllText($p)
             $clean = [regex]::Replace($md, '(?ms)^<!-- ontoindex:start -->.*?^<!-- ontoindex:end -->[ \t]*(\r?\n)?', '')
             if ($clean -ne $md) {
-                if ($clean.Trim().Length -eq 0) { Remove-Item $p -Force -Confirm:$false } else { $clean.TrimEnd() + "`n" | Out-File $p -Encoding utf8 }
+                if ($clean.Trim().Length -eq 0) { Remove-Item -LiteralPath $p -Force -Confirm:$false } else { Write-Text $p ($clean.TrimEnd() + "`n") }
             }
         }
     }
 }
 function Get-HookCommand { 'node "' + $HookJs + '"' }
 function Test-OurHook($entry) {
-    foreach ($h in @($entry.hooks)) { if ($h.command -and $h.command -like '*ontoindex-hook.js*') { return $true } }
+    # Узкая сигнатура (ревью, major #5): наш хук = ontoindex-hook + наш движковый путь
+    # (…\.claude\tools\ontoindex\…). Хук стороннего плагина апстрима под фильтр не попадает.
+    foreach ($h in @($entry.hooks)) {
+        if ($h.command -and $h.command -like '*ontoindex-hook*' -and $h.command -like '*.claude*tools*ontoindex*') { return $true }
+    }
     return $false
 }
 
@@ -83,9 +96,14 @@ switch ($Mode) {
         command = 'node'
         args    = @(($CliJs -replace '\\','/'), 'mcp')
         env     = [pscustomobject]@{
-            ONTOINDEX_MCP_PROJECT_CWD = $proj
-            ONTOINDEX_MCP_REPO        = $proj
+            ONTOINDEX_MCP_PROJECT_CWD  = $proj
+            ONTOINDEX_MCP_REPO         = $proj
             ONTOINDEX_MCP_AUTO_ANALYZE = '0'
+            ONTOINDEX_DISABLE_SEMANTIC = '1'   # технический гейт embedder→huggingface (F10, наш патч)
+            ONTOINDEX_QUERY_LOG        = '0'   # локальный query-лог выключен (~/.ontoindex/logs)
+            ONTOINDEX_TOOL_TELEMETRY   = '0'   # локальная телеметрия инструментов выключена (наш патч)
+            HF_HUB_OFFLINE             = '1'   # страховка для HF-стека
+            TRANSFORMERS_OFFLINE       = '1'
         }
     }
     if ($mcp.mcpServers.PSObject.Properties['ontoindex']) { $mcp.mcpServers.ontoindex = $entry }
@@ -121,16 +139,24 @@ switch ($Mode) {
         if (Test-Path $alt) { $BlockTpl = $alt } else { throw "Шаблон не найден: $BlockTpl" }
     }
     $tpl = Get-Content $BlockTpl -Raw -Encoding utf8
-    $md = if (Test-Path $ClaudeMd) { Get-Content $ClaudeMd -Raw -Encoding utf8 } else { '' }
+    $md = if (Test-Path -LiteralPath $ClaudeMd) { [System.IO.File]::ReadAllText($ClaudeMd) } else { '' }
     $bi = $md.IndexOf($MarkBeg); $ei = $md.IndexOf($MarkEnd)
     if ($bi -ge 0 -and $ei -gt $bi) { $md = $md.Substring(0, $bi) + $tpl.TrimEnd() + "`n" + $md.Substring($ei + $MarkEnd.Length).TrimStart("`r","`n") }
     else { $md = $md.TrimEnd() + "`n`n" + $tpl.TrimEnd() + "`n" }
-    $md | Out-File $ClaudeMd -Encoding utf8
-    # 5. .gitignore (учитываем оба написания: апстрим-analyze сам дописывает '.ontoindex')
-    $gi = if (Test-Path $GitIgn) { Get-Content $GitIgn -Encoding utf8 } else { @() }
-    if (($gi -notcontains '.ontoindex/') -and ($gi -notcontains '.ontoindex')) { ($gi + '.ontoindex/') -join "`n" | Out-File $GitIgn -Encoding utf8 }
+    Write-Text $ClaudeMd $md
+    # 5. .gitignore (учитываем оба написания: апстрим-analyze сам дописывает '.ontoindex');
+    #    точечный append без перезаписи файла (сохраняем чужие переводы строк/кодировку)
+    $gi = if (Test-Path -LiteralPath $GitIgn) { Get-Content -LiteralPath $GitIgn -Encoding utf8 } else { @() }
+    if (($gi -notcontains '.ontoindex/') -and ($gi -notcontains '.ontoindex')) {
+        [System.IO.File]::AppendAllText($GitIgn, "`n.ontoindex/`n", $Utf8NoBom)
+    }
+    # 6. .ontoindexignore — шаблон для больших репо (если нет)
+    $OiIgn = Join-Path $Project '.ontoindexignore'
+    if (-not (Test-Path -LiteralPath $OiIgn)) {
+        Write-Text $OiIgn "node_modules/`ndist/`nbuild/`nout/`n.git/`n.trash/`n*.min.js`n*.bundle.js`n"
+    }
     Remove-UpstreamBlock
-    Write-Host "ON: index=$(Test-Path $IdxDir) mcp=ok hooks=ok claude_md=ok gitignore=ok"
+    Write-Host "ON: index=$(Test-Path -LiteralPath $IdxDir) mcp=ok hooks=ok claude_md=ok gitignore=ok ontoindexignore=ok"
 }
 
 'off' {
@@ -155,25 +181,27 @@ switch ($Mode) {
         Write-Json $SetPath $set
     }
     # 3. CLAUDE.md: убрать блок
-    if (Test-Path $ClaudeMd) {
-        $md = Get-Content $ClaudeMd -Raw -Encoding utf8
+    if (Test-Path -LiteralPath $ClaudeMd) {
+        $md = [System.IO.File]::ReadAllText($ClaudeMd)
         $bi = $md.IndexOf($MarkBeg); $ei = $md.IndexOf($MarkEnd)
         if ($bi -ge 0 -and $ei -gt $bi) {
-            ($md.Substring(0, $bi).TrimEnd() + "`n" + $md.Substring($ei + $MarkEnd.Length).TrimStart("`r","`n")) | Out-File $ClaudeMd -Encoding utf8
+            Write-Text $ClaudeMd ($md.Substring(0, $bi).TrimEnd() + "`n" + $md.Substring($ei + $MarkEnd.Length).TrimStart("`r","`n"))
         }
     }
-    # 4. Индекс и глобальный реестр СОХРАНЯЮТСЯ (решение CBM: re-on дёшев)
+    # 4. Индекс и глобальный реестр СОХРАНЯЮТСЯ (решение CBM: re-on дёшев; запись в
+    #    ~/.ontoindex/registry.json безвредна без индекса и чистится только clear --hard)
     Write-Host "OFF: mcp/hooks/claude_md сняты; .ontoindex/ сохранён"
 }
 
 'clear' {
     & $PSCommandPath -Mode off -Project $Project | Out-Null
-    if (Test-Path $IdxDir) {
+    if (Test-Path -LiteralPath $IdxDir) {
         $stamp = Get-Date -Format 'yyyy-MM-dd_HHmmss'
         $dest = Join-Path $Project ".trash\memory_code\$stamp"
         New-Item -ItemType Directory -Force $dest | Out-Null
-        Move-Item $IdxDir (Join-Path $dest '.ontoindex')
-        Write-Host "CLEAR: индекс перемещён в .trash\memory_code\$stamp (восстановимо)"
+        try { Move-Item -LiteralPath $IdxDir -Destination (Join-Path $dest '.ontoindex') }
+        catch { throw "CLEAR: не удалось переместить .ontoindex (вероятно, DB-lock LadybugDB — закрой сессии Claude с MCP ontoindex этого проекта и повтори): $_" }
+        Write-Host "CLEAR: индекс перемещён в .trash\memory_code\$stamp (восстановимо; запись в ~/.ontoindex/registry.json сохраняется до clear --hard)"
     } else { Write-Host "CLEAR: индекса нет — только off" }
 }
 
@@ -181,7 +209,7 @@ switch ($Mode) {
     if (-not $Force) { throw "clear-hard требует -Force (подтверждение пользователя обязан получить вызывающий)" }
     & $PSCommandPath -Mode off -Project $Project | Out-Null
     foreach ($p in @($IdxDir, (Join-Path $Project '.trash\memory_code'))) {
-        if (Test-Path $p) { Remove-Item $p -Recurse -Force -Confirm:$false }
+        if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Recurse -Force -Confirm:$false }
     }
     # Глобальный реестр: убрать запись проекта (формат реестра — best effort, оба варианта)
     $reg = Join-Path $env:USERPROFILE '.ontoindex\registry.json'
@@ -221,9 +249,9 @@ switch ($Mode) {
             if ($set.hooks.PSObject.Properties[$ev]) { foreach ($e in @($set.hooks.$ev)) { if (Test-OurHook $e) { $hasHook = $true } } }
         }
     }
-    $hasBlock = (Test-Path $ClaudeMd) -and ((Get-Content $ClaudeMd -Raw -Encoding utf8).Contains($MarkBeg))
+    $hasBlock = (Test-Path -LiteralPath $ClaudeMd) -and (([System.IO.File]::ReadAllText($ClaudeMd)).Contains($MarkBeg))
     [pscustomobject]@{
-        index    = Test-Path $IdxDir
+        index    = Test-Path -LiteralPath $IdxDir
         mcp      = $hasMcp
         hooks    = $hasHook
         claudemd = $hasBlock

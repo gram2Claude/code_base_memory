@@ -57,6 +57,12 @@ export const initEmbedder = async (): Promise<FeatureExtractionPipeline> => {
     throw new Error('initEmbedder() should not be called in HTTP mode.');
   }
 
+  // CBM security gate (F10): semantic mode downloads the model from huggingface.co
+  // on first use (env.allowLocalModels=false below). Disabled TECHNICALLY here.
+  if (process.env.ONTOINDEX_DISABLE_SEMANTIC === '1') {
+    throw new Error('Semantic/embedding mode is disabled by CBM offline policy (ONTOINDEX_DISABLE_SEMANTIC=1).');
+  }
+
   if (embedderInstance) {
     return embedderInstance;
   }

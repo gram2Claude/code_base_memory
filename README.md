@@ -43,10 +43,13 @@ Node 24): закоммить любое изменение в `.github/engine-bu
 и опубликует `engine-bundle.tgz` в релиз `engine-bundle-win-node24`. Локально:
 
 ```powershell
-# скачать asset релиза engine-bundle-win-node24, затем:
-tar -xzf engine-bundle.tgz -C ontoindex\ontoindex   # node_modules + dist + grammar-inventory.txt
+# скачать asset релиза engine-bundle-win-node24 (dev-скрипт, читает PAT из ~/.wgp/secrets.json):
+node tools\fetch_engine_bundle.mjs
 powershell -ExecutionPolicy Bypass -File tools\install.ps1 -Prebuilt
 ```
+
+> `fetch_engine_bundle.mjs` — вспомогательный dev-скрипт сопровождения (НЕ часть runtime
+> поставки скила); без PAT asset можно скачать вручную со страницы релиза.
 
 ## Использование
 

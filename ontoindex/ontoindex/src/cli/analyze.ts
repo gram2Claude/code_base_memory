@@ -590,8 +590,8 @@ export const analyzeCommand = async (inputPath?: string, options?: AnalyzeOption
       console.error('  This looks like an npm dependency resolution issue.');
       console.error('  Suggestions:');
       console.error('    1. Clear the npm cache:    npm cache clean --force');
-      console.error('    2. Update npm:             npm install -g npm@latest');
-      console.error('    3. Reinstall ontoindex:     npm install -g ontoindex@latest');
+      console.error('    2. Reinstall engine:       tools\install.ps1 -Prebuilt');
+      console.error('    3. Reinstall ontoindex:     tools\install.ps1 -Prebuilt');
       console.error('    4. Or run the vendored engine directly:    ontoindex analyze');
       console.error('');
     } else if (
@@ -601,7 +601,7 @@ export const analyzeCommand = async (inputPath?: string, options?: AnalyzeOption
     ) {
       console.error('  A required module could not be loaded. The installation may be corrupt.');
       console.error('  Suggestions:');
-      console.error('    1. Reinstall:   npm install -g ontoindex@latest');
+      console.error('    1. Reinstall:   tools\install.ps1 -Prebuilt');
       console.error('    2. Clear cache: npm cache clean --force && ontoindex analyze');
       console.error('');
     }

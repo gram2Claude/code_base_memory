@@ -9,7 +9,7 @@ description: >
   удалить окончательно (с подтверждением); update — переиндексация. Запускать в корне проекта.
   Триггеры: «подключить кодовую память», «memory_code_active», «memory code on»,
   «отключить кодовую память», «очистить кодовую память», «обнови индекс кода».
-argument-hint: "[on|off|clear [--hard]|update]"
+argument-hint: "[on|off|clear [--hard]|update|status]"
 ---
 
 # /memory_code_active
@@ -32,7 +32,7 @@ argument-hint: "[on|off|clear [--hard]|update]"
   **детерминированный движок режимов** (все файловые операции делает ОН, не правь JSON руками).
 
 ## Шаг 1 — разобрать аргумент
-- (пусто) или `on` → **on**; `off` → **off**; `clear` → **clear**; `clear --hard` → **clear --hard**; `update` → **update**.
+- (пусто) или `on` → **on**; `off` → **off**; `clear` → **clear**; `clear --hard` → **clear --hard**; `update` → **update**; `status` → **status**.
 
 ## Шаг 2 — выполнить (через движок `MC`; ниже — что он делает и что проверить)
 
@@ -43,10 +43,13 @@ argument-hint: "[on|off|clear [--hard]|update]"
    установлен — запусти tools\install.ps1 из репо code_base_memory» и ОСТАНОВИТЬСЯ.
 1. Выполнить: `<MC> -Mode on -Project "<PROJECT>"`.
    Движок сделает: индекс `.ontoindex/` (`analyze` БЕЗ `--embeddings` — F10); merge записи
-   `mcpServers.ontoindex` в `.mcp.json` (stdio, read-only, БЕЗ `--confirm-writes`, env
-   ONTOINDEX_MCP_PROJECT_CWD/REPO); merge хуков augment (PreToolUse: Grep|Glob|Bash) и
-   stale-детект (PostToolUse: Bash) в `.claude/settings.json` БЕЗ затирания чужих хуков;
-   блок MEMORY_CODE в CLAUDE.md (маркеры); `.ontoindex/` в .gitignore.
+   `mcpServers.ontoindex` в `.mcp.json` (stdio, read-only, БЕЗ `--confirm-writes`; env:
+   ONTOINDEX_MCP_PROJECT_CWD/REPO + security-гейты ONTOINDEX_DISABLE_SEMANTIC=1,
+   ONTOINDEX_QUERY_LOG=0, ONTOINDEX_TOOL_TELEMETRY=0, HF_HUB_OFFLINE=1); merge хуков
+   augment (PreToolUse: Grep|Glob|Bash) и stale-детект (PostToolUse: Bash) в
+   `.claude/settings.json` БЕЗ затирания чужих хуков; блок MEMORY_CODE в CLAUDE.md
+   (маркеры; апстрим-блок ontoindex:start зачищается); `.ontoindex/` в .gitignore;
+   шаблон `.ontoindexignore` (если нет). Все записи — UTF-8 без BOM.
 2. Проверить вывод `ON: ...` и сказать: «Кодовая память подключена. Работает в НОВОЙ сессии
    Claude. После крупных правок/merge — /memory_code_active update».
 
@@ -60,7 +63,8 @@ argument-hint: "[on|off|clear [--hard]|update]"
 ### clear — мягкая очистка (восстановимо)
 
 1. Выполнить: `<MC> -Mode clear -Project "<PROJECT>"` (off + перенос `.ontoindex/` в
-   `.trash\memory_code\<метка>`).
+   `.trash\memory_code\<метка>`). Запись в `~/.ontoindex/registry.json` ОСОЗНАННО
+   сохраняется (восстановимость; без индекса она безвредна) — чистится только clear --hard.
 2. Сказать: «Индекс убран в .trash (восстановимо)».
 
 ### clear --hard — окончательное удаление
