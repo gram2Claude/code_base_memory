@@ -148,7 +148,7 @@ export async function detectChanges(
       break;
     case 'compare':
       if (!params.base_ref) return { error: 'base_ref is required for "compare" scope' };
-      diffArgs = ['diff', params.base_ref, '-U0'];
+      diffArgs = ['diff', '--end-of-options', params.base_ref, '-U0'];
       break;
     case 'unstaged':
     default:

@@ -143,18 +143,21 @@ function getMcpEntry(): McpEntry {
     return { command: bin, args: ['mcp'], env: defaultMcpEnv() };
   }
 
-  // Last-resort fallback for source-tree setup before a build exists. This is
-  // intentionally not @latest; it avoids silent version drift during MCP init.
-  if (process.platform === 'win32') {
-    return {
-      command: 'cmd',
-      args: ['/c', 'npx', '-y', 'ontoindex', 'mcp'],
-      env: defaultMcpEnv(),
-    };
-  }
+  // Last-resort fallback: vendored local engine (CBM-2: network npx fallback
+  // removed — this vendored copy must never cold-start from the npm registry).
+  const vendoredEngineCli = path.join(
+    os.homedir(),
+    '.claude',
+    'tools',
+    'ontoindex',
+    'ontoindex',
+    'dist',
+    'cli',
+    'index.js',
+  );
   return {
-    command: 'npx',
-    args: ['-y', 'ontoindex', 'mcp'],
+    command: process.execPath,
+    args: [vendoredEngineCli, 'mcp'],
     env: defaultMcpEnv(),
   };
 }

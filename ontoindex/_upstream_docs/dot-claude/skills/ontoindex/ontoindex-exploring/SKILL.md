@@ -23,7 +23,7 @@ description: "Use when the user asks how code works, wants to understand archite
 5. READ ontoindex://repo/{name}/process/{name}      → Trace full execution flow
 ```
 
-> If step 2 says "Index is stale" → run `ontoindex analyze` in terminal.
+> If step 2 says "Index is stale" → run `npx ontoindex analyze` in terminal.
 
 ## Checklist
 

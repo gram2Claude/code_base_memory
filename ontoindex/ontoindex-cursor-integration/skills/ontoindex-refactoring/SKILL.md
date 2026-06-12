@@ -21,7 +21,7 @@ description: Plan safe refactors using blast radius and dependency mapping
 4. Plan update order: interfaces → implementations → callers → tests
 ```
 
-> If "Index is stale" → run `npx ontoindex analyze` in terminal.
+> If "Index is stale" → run `ontoindex analyze` in terminal.
 
 ## Checklists
 

@@ -1,11 +1,12 @@
 ---
 name: ontoindex-debugging
-description: Trace bugs through call chains using knowledge graph
+description: "Use when the user is debugging a bug, tracing an error, or asking why something fails. Examples: \"Why is X failing?\", \"Where does this error come from?\", \"Trace this bug\""
 ---
 
 # Debugging with OntoIndex
 
 ## When to Use
+
 - "Why is this function failing?"
 - "Trace where this error comes from"
 - "Who calls this method?"
@@ -21,7 +22,7 @@ description: Trace bugs through call chains using knowledge graph
 4. ontoindex_cypher({query: "MATCH path..."})                 → Custom traces if needed
 ```
 
-> If "Index is stale" → run `ontoindex analyze` in terminal.
+> If "Index is stale" → run `npx ontoindex analyze` in terminal.
 
 ## Checklist
 
@@ -37,17 +38,18 @@ description: Trace bugs through call chains using knowledge graph
 
 ## Debugging Patterns
 
-| Symptom | OntoIndex Approach |
-|---------|-------------------|
-| Error message | `ontoindex_query` for error text → `context` on throw sites |
-| Wrong return value | `context` on the function → trace callees for data flow |
-| Intermittent failure | `context` → look for external calls, async deps |
-| Performance issue | `context` → find symbols with many callers (hot paths) |
-| Recent regression | `detect_changes` to see what your changes affect |
+| Symptom              | OntoIndex Approach                                          |
+| -------------------- | ---------------------------------------------------------- |
+| Error message        | `ontoindex_query` for error text → `context` on throw sites |
+| Wrong return value   | `context` on the function → trace callees for data flow    |
+| Intermittent failure | `context` → look for external calls, async deps            |
+| Performance issue    | `context` → find symbols with many callers (hot paths)     |
+| Recent regression    | `detect_changes` to see what your changes affect           |
 
 ## Tools
 
 **ontoindex_query** — find code related to error:
+
 ```
 ontoindex_query({query: "payment validation error"})
 → Processes: CheckoutFlow, ErrorHandling
@@ -55,6 +57,7 @@ ontoindex_query({query: "payment validation error"})
 ```
 
 **ontoindex_context** — full context for a suspect:
+
 ```
 ontoindex_context({name: "validatePayment"})
 → Incoming calls: processCheckout, webhookHandler
@@ -63,6 +66,7 @@ ontoindex_context({name: "validatePayment"})
 ```
 
 **ontoindex_cypher** — custom call chain traces:
+
 ```cypher
 MATCH path = (a)-[:CodeRelation {type: 'CALLS'}*1..2]->(b:Function {name: "validatePayment"})
 RETURN [n IN nodes(path) | n.name] AS chain

@@ -210,8 +210,24 @@ function runOntoIndexCli(args, cwd, timeout) {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
   }
-  // On Windows, invoke npx.cmd directly (no shell needed)
-  return spawnSync(isWin ? 'npx.cmd' : 'npx', ['-y', 'ontoindex', ...args], {
+  // CBM-2: network npx fallback removed — fall back to the vendored local
+  // engine (ONTOINDEX_CLI_JS overrides; default: ~/.claude/tools/ontoindex).
+  const engineCli =
+    process.env.ONTOINDEX_CLI_JS ||
+    path.join(
+      os.homedir(),
+      '.claude',
+      'tools',
+      'ontoindex',
+      'ontoindex',
+      'dist',
+      'cli',
+      'index.js',
+    );
+  if (!fs.existsSync(engineCli)) {
+    return { status: 1, stdout: '', stderr: `ontoindex engine not found: ${engineCli}` };
+  }
+  return spawnSync(process.execPath, [engineCli, ...args], {
     encoding: 'utf-8',
     timeout,
     cwd,
@@ -320,7 +336,7 @@ function handlePostToolUse(input) {
   // If HEAD matches last indexed commit, no reindex needed
   if (currentHead && currentHead === lastCommit) return;
 
-  const analyzeCmd = `npx ontoindex analyze${hadEmbeddings ? ' --embeddings' : ''}`;
+  const analyzeCmd = `ontoindex analyze${hadEmbeddings ? ' --embeddings' : ''}`;
   sendHookResponse(
     'PostToolUse',
     `OntoIndex index is stale (last indexed: ${lastCommit ? lastCommit.slice(0, 7) : 'never'}). ` +

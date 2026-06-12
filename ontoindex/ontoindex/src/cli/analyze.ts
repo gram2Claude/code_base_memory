@@ -592,7 +592,7 @@ export const analyzeCommand = async (inputPath?: string, options?: AnalyzeOption
       console.error('    1. Clear the npm cache:    npm cache clean --force');
       console.error('    2. Update npm:             npm install -g npm@latest');
       console.error('    3. Reinstall ontoindex:     npm install -g ontoindex@latest');
-      console.error('    4. Or try npx directly:    npx ontoindex@latest analyze');
+      console.error('    4. Or run the vendored engine directly:    ontoindex analyze');
       console.error('');
     } else if (
       msg.includes('MODULE_NOT_FOUND') ||
@@ -602,7 +602,7 @@ export const analyzeCommand = async (inputPath?: string, options?: AnalyzeOption
       console.error('  A required module could not be loaded. The installation may be corrupt.');
       console.error('  Suggestions:');
       console.error('    1. Reinstall:   npm install -g ontoindex@latest');
-      console.error('    2. Clear cache: npm cache clean --force && npx ontoindex@latest analyze');
+      console.error('    2. Clear cache: npm cache clean --force && ontoindex analyze');
       console.error('');
     }
 

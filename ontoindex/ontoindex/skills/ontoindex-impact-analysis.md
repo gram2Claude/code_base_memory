@@ -23,7 +23,7 @@ description: "Use when the user wants to know what will break if they change som
 4. Assess risk and report to user
 ```
 
-> If "Index is stale" → run `npx ontoindex analyze` in terminal.
+> If "Index is stale" → run `ontoindex analyze` in terminal.
 
 ## Checklist
 

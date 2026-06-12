@@ -77,7 +77,7 @@ describe.each(HOOKS)('hooks e2e ($name)', ({ name, path: hookPath }) => {
       const output = parseHookOutput(result.stdout);
       expect(output).not.toBeNull();
       expect(output!.additionalContext).toContain('stale');
-      expect(output!.additionalContext).toContain('npx ontoindex analyze');
+      expect(output!.additionalContext).toContain('ontoindex analyze');
     });
 
     it('stays silent when meta.json lastCommit matches HEAD', () => {

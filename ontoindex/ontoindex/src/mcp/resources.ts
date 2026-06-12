@@ -1085,7 +1085,7 @@ async function getSetupResource(backend: LocalBackend): Promise<string> {
   const repos = await backend.listRepos();
 
   if (repos.length === 0) {
-    return '# OntoIndex\n\nNo repositories indexed. Run: `npx ontoindex analyze` in a repository.';
+    return '# OntoIndex\n\nNo repositories indexed. Run: `ontoindex analyze` in a repository.';
   }
 
   const sections: string[] = [];

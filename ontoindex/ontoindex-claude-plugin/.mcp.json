@@ -1,16 +1,11 @@
 {
   "mcpServers": {
     "ontoindex": {
-      "command": "npx",
-      "args": ["-y", "ontoindex@latest", "mcp"]
-    },
-    "lean-ctx": {
-      "command": "lean-ctx",
-      "args": []
-    },
-    "mcp-on-demand": {
-      "command": "npx",
-      "args": ["-y", "@soflution/mcp-on-demand"]
+      "command": "node",
+      "args": [
+        "C:/Users/Oleg/.claude/tools/ontoindex/ontoindex/dist/cli/index.js",
+        "mcp"
+      ]
     }
   }
 }
