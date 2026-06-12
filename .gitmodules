@@ -1,0 +1,3 @@
+[submodule "ontoindex"]
+	path = ontoindex
+	url = https://github.com/ontograph/ontoindex.git

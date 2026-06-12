@@ -1,0 +1,52 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "C:/Users/Oleg/.local/bin/uv.exe run --directory C:/Users/Oleg/.claude/tools/memory-compiler python C:/Users/Oleg/.claude/tools/memory-compiler/hooks/session-start.py --mem-dir C:/Users/Oleg/Desktop/Alex/03_claude/17_code_base_memory/.claude/memory_short",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "C:/Users/Oleg/.local/bin/uv.exe run --directory C:/Users/Oleg/.claude/tools/memory-compiler python C:/Users/Oleg/.claude/tools/memory-compiler/hooks/session-end.py --mem-dir C:/Users/Oleg/Desktop/Alex/03_claude/17_code_base_memory/.claude/memory_short",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "C:/Users/Oleg/.local/bin/uv.exe run --directory C:/Users/Oleg/.claude/tools/memory-compiler python C:/Users/Oleg/.claude/tools/memory-compiler/hooks/pre-compact.py --mem-dir C:/Users/Oleg/Desktop/Alex/03_claude/17_code_base_memory/.claude/memory_short",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "C:/Users/Oleg/.local/bin/uv.exe run --directory C:/Users/Oleg/.claude/tools/memory-compiler python C:/Users/Oleg/.claude/tools/memory-compiler/hooks/stop.py --mem-dir C:/Users/Oleg/Desktop/Alex/03_claude/17_code_base_memory/.claude/memory_short",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
