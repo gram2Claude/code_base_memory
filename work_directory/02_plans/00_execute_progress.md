@@ -50,3 +50,14 @@
 - PS 5.1 требует UTF-8 BOM для .ps1 с кириллицей — добавлен во все наши скрипты.
 - CBM-19/20: вопрос «Активировать кодовую память?» + code_memory (true/false/deferred,
   greenfield-отложка) добавлены в фазы init/publish workflow_global_plan.
+- CBM-3 эскалация: Олег НЕ админ (Administrators: только Administrator, 1C-ZUP-TEST) →
+  MSVC поставить нельзя; Docker нет; tree-sitter 0.25 публикуется БЕЗ prebuilds. Решение:
+  сборка в GitHub Actions (windows-2022 = наша ОС) → release-asset engine-bundle-win-node24
+  (PAT fine-grained: workflow-пуш можно, Actions:write/read нельзя → триггер push-файлом
+  .github/engine-build-request, доставка через release, не артефакт).
+- CI-прогон №1 упал: Node 24 V8-заголовки требуют C++20, tree-sitter форсит /std:c++17
+  (#error C1189) — на Node 24 НЕ собирается вовсе. Прогон №2 — Node 22; модули N-API,
+  ABI-стабильны → бандл должен грузиться под локальным Node 24. Fallback при провале
+  загрузки: портативный Node 22 (zip, без админа) только для движка.
+- README (CBM-25) написан; install.ps1 получил -Prebuilt; смоук движка готов
+  (tests/smoke_engine.mjs: analyze + MCP stdio handshake).
