@@ -1,8 +1,11 @@
 # OntoIndex — обзор репозитория
 
 > Дата изучения: 2026-06-12
-> Источник: https://github.com/ontograph/ontoindex (клон в `./ontoindex/`)
-> Версия: 1.9.3 · Лицензия: AGPL-3.0-or-later · Наследник проекта GitNexus
+> Источник: https://github.com/ontograph/ontoindex
+> **ВЕНДОРЕНО (CBM-1, 2026-06-12): `./ontoindex/` — полный локальный срез апстрим-коммита
+> `b373fdf` (без `.git` и `.history`), от апстрима НЕ зависит. Апдейты — только осознанным
+> diff-переносом с повторным security-ревью.**
+> Версия: 1.9.3 · Лицензия: AGPL-3.0-or-later (LICENSE/NOTICE сохранены) · Наследник GitNexus
 
 ## Что это
 
