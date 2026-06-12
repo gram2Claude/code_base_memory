@@ -37,6 +37,27 @@ function Invoke-Analyze {
         node $CliJs analyze .   # БЕЗ --embeddings: семантический режим запрещён (F10, HF-офлайн)
         if ($LASTEXITCODE -ne 0) { throw "ontoindex analyze failed: $LASTEXITCODE (если ошибка lock — закрой сессии Claude с MCP ontoindex этого проекта и повтори)" }
     } finally { Pop-Location }
+    Remove-UpstreamBlock
+}
+function Remove-UpstreamBlock {
+    # run-analyze.ts безусловно дописывает в CLAUDE.md блок <!-- ontoindex:start/end -->
+    # (ссылается на НЕустановленные skill-файлы); канонические инструкции — наш блок
+    # MEMORY_CODE, апстримовский вычищаем.
+    if (Test-Path $ClaudeMd) {
+        $md = Get-Content $ClaudeMd -Raw -Encoding utf8
+        $clean = [regex]::Replace($md, '(?ms)^<!-- ontoindex:start -->.*?^<!-- ontoindex:end -->[ \t]*(\r?\n)?', '')
+        if ($clean -ne $md) { $clean.TrimEnd() + "`n" | Out-File $ClaudeMd -Encoding utf8 }
+    }
+    foreach ($f in @('AGENTS.md')) {
+        $p = Join-Path $Project $f
+        if (Test-Path $p) {
+            $md = Get-Content $p -Raw -Encoding utf8
+            $clean = [regex]::Replace($md, '(?ms)^<!-- ontoindex:start -->.*?^<!-- ontoindex:end -->[ \t]*(\r?\n)?', '')
+            if ($clean -ne $md) {
+                if ($clean.Trim().Length -eq 0) { Remove-Item $p -Force -Confirm:$false } else { $clean.TrimEnd() + "`n" | Out-File $p -Encoding utf8 }
+            }
+        }
+    }
 }
 function Get-HookCommand { 'node "' + $HookJs + '"' }
 function Test-OurHook($entry) {
@@ -105,9 +126,10 @@ switch ($Mode) {
     if ($bi -ge 0 -and $ei -gt $bi) { $md = $md.Substring(0, $bi) + $tpl.TrimEnd() + "`n" + $md.Substring($ei + $MarkEnd.Length).TrimStart("`r","`n") }
     else { $md = $md.TrimEnd() + "`n`n" + $tpl.TrimEnd() + "`n" }
     $md | Out-File $ClaudeMd -Encoding utf8
-    # 5. .gitignore
+    # 5. .gitignore (учитываем оба написания: апстрим-analyze сам дописывает '.ontoindex')
     $gi = if (Test-Path $GitIgn) { Get-Content $GitIgn -Encoding utf8 } else { @() }
-    if ($gi -notcontains '.ontoindex/') { ($gi + '.ontoindex/') -join "`n" | Out-File $GitIgn -Encoding utf8 }
+    if (($gi -notcontains '.ontoindex/') -and ($gi -notcontains '.ontoindex')) { ($gi + '.ontoindex/') -join "`n" | Out-File $GitIgn -Encoding utf8 }
+    Remove-UpstreamBlock
     Write-Host "ON: index=$(Test-Path $IdxDir) mcp=ok hooks=ok claude_md=ok gitignore=ok"
 }
 
