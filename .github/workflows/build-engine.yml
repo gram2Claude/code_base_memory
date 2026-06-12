@@ -28,6 +28,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      # build.js пакета компилит соседний ontoindex-shared через `npx tsc` —
+      # shared нужны СВОИ node_modules (typescript), ставим их первыми.
+      - name: npm ci (ontoindex-shared)
+        working-directory: ontoindex/ontoindex-shared
+        run: npm ci --no-fund --no-audit
       - name: npm ci (native builds, legacy-peer-deps)
         working-directory: ontoindex/ontoindex
         run: npm ci --legacy-peer-deps --no-fund --no-audit
@@ -40,7 +45,7 @@ jobs:
           Get-ChildItem -Recurse node_modules -Filter '*.node' -ErrorAction SilentlyContinue |
             ForEach-Object { $_.FullName.Replace((Get-Location).Path + '\', '') } |
             Tee-Object grammar-inventory.txt
-      - name: pack bundle (dereference file:-symlinks)
+      - name: pack bundle (dereference file:-symlinks; dist самодостаточен — build.js инлайнит shared)
         working-directory: ontoindex/ontoindex
         run: tar -czLf engine-bundle.tgz node_modules dist grammar-inventory.txt
       - name: publish as release asset

@@ -32,7 +32,12 @@ if ($LASTEXITCODE -ge 8) { throw "robocopy failed: $LASTEXITCODE" }
 if ($Prebuilt) {
     Write-Host "[2-3/5] Пропущено (Prebuilt: node_modules+dist из CI-бандла скопированы как есть)"
 } else {
-    Write-Host "[2/5] npm ci (пакет ontoindex; НЕ корень монорепо — prepare:husky без .git падает)"
+    Write-Host "[2/5] npm ci (сначала ontoindex-shared — его tsc нужен build.js пакета; затем пакет; НЕ корень монорепо — prepare:husky без .git падает)"
+    Push-Location (Join-Path $EngineDir 'ontoindex-shared')
+    try {
+        npm ci --no-fund --no-audit
+        if ($LASTEXITCODE -ne 0) { throw "npm ci (shared) failed: $LASTEXITCODE" }
+    } finally { Pop-Location }
     Push-Location (Join-Path $EngineDir 'ontoindex')
     try {
         # Node >=24/npm 11: peer-конфликты optional-грамматик требуют legacy-peer-deps
