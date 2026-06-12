@@ -1,0 +1,8 @@
+node_modules/
+dist/
+build/
+out/
+.git/
+.trash/
+*.min.js
+*.bundle.js

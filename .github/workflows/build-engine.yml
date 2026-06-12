@@ -1,0 +1,60 @@
+# Сборка нативного движка ontoindex для Windows (CBM-3).
+# Зачем: на целевой машине нет прав администратора → нет MSVC → node-gyp не может
+# собрать tree-sitter (npm-пакет 0.25 публикуется без prebuilds). Раннер windows-2022 —
+# та же ОС, что хост (Windows Server 2022), Node 24 → бинарно совместимый bundle.
+# Триггер: push файла .github/engine-build-request (PAT без Actions:write не умеет dispatch).
+# Результат: release-asset engine-bundle.tgz в релизе engine-bundle-win-node24
+# (артефакты Actions недоступны нашему PAT, release-asset качается с contents:read).
+name: build-engine
+on:
+  push:
+    branches: [oleg, main]
+    paths:
+      - '.github/engine-build-request'
+      - '.github/workflows/build-engine.yml'
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      # Node 22, НЕ 24: V8-заголовки Node 24 требуют C++20, а tree-sitter 0.25 собирает
+      # binding с /std:c++17 (#error C1189). Модули N-API → ABI-стабильны, бандл,
+      # собранный на 22, работает под локальным Node 24.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # build.js пакета компилит соседний ontoindex-shared через `npx tsc` —
+      # shared нужны СВОИ node_modules (typescript), ставим их первыми.
+      - name: npm ci (ontoindex-shared)
+        working-directory: ontoindex/ontoindex-shared
+        run: npm ci --no-fund --no-audit
+      - name: npm ci (native builds, legacy-peer-deps)
+        working-directory: ontoindex/ontoindex
+        run: npm ci --legacy-peer-deps --no-fund --no-audit
+      - name: build dist (tsc + super-dispatch validation)
+        working-directory: ontoindex/ontoindex
+        run: npm run build
+      - name: grammar inventory (t03 done-criteria)
+        working-directory: ontoindex/ontoindex
+        run: |
+          Get-ChildItem -Recurse node_modules -Filter '*.node' -ErrorAction SilentlyContinue |
+            ForEach-Object { $_.FullName.Replace((Get-Location).Path + '\', '') } |
+            Tee-Object grammar-inventory.txt
+      - name: pack bundle (dereference file:-symlinks; dist самодостаточен — build.js инлайнит shared)
+        working-directory: ontoindex/ontoindex
+        run: tar -czLf engine-bundle.tgz node_modules dist grammar-inventory.txt
+      - name: publish as release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = 'engine-bundle-win-node24'
+          gh release delete $tag --yes --cleanup-tag 2>$null; if ($LASTEXITCODE -ne 0) { Write-Host 'no previous release' }
+          gh release create $tag ontoindex/ontoindex/engine-bundle.tgz `
+            --title 'Engine bundle (win32-x64, Node 24)' `
+            --notes ('built from ' + $env:GITHUB_SHA + ' on windows-2022') `
+            --target $env:GITHUB_SHA

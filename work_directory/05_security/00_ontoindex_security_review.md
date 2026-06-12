@@ -143,6 +143,27 @@
 Чек-лист безопасного вендоринга расширен: пункты 9 (HF-офлайн) и 10 (нейтрализация
 агент-конфигов) добавлены задачами t04/t19 в план CBM.
 
+## Re-check применённых патчей (2026-06-12, независимый агент)
+
+После применения мер проведена повторная проверка (read-only, 7 пунктов). Вердикт — все ЗАКРЫТО:
+- F1 scarf — 0 в зависимостях (вкл. lock); F2/CBM-2 npx→локальный движок во всех runtime-хуках,
+  setup.ts, .mcp.json (репо и установка); F4 `--end-of-options` на месте.
+- **F10 huggingface — закрыто ТЕХНИЧЕСКИ**: гейт `ONTOINDEX_DISABLE_SEMANTIC=1` в embedder.ts/.js
+  бросает ДО загрузки модели (доказано unit-тестом); env проставляется режимом on. Доп. HF-путь
+  ce-reranker — opt-in (`ONTOINDEX_CE_RERANK`, по умолчанию off).
+- Env-гейты реально читаются кодом (`ONTOINDEX_DISABLE_SEMANTIC`/`QUERY_LOG`/`TOOL_TELEMETRY` —
+  подтверждены grep'ом по src), не «пустые».
+- F11 агент-конфиги: вне `_upstream_docs/` активных CLAUDE.md/AGENTS/.mcp.json/.cursorrules нет;
+  корневой `.mcp.json` удалён.
+- Установленный движок (`~/.claude/tools/ontoindex`) синхронизирован с репо байт-в-байт по
+  ключевым файлам (hooks, memory_code.ps1, dist/embedder.js).
+- PowerShell-скрипты: секретов нет; clear-hard `Remove-Item -Recurse` ограничен `-LiteralPath`
+  внутри проекта; robocopy `/MIR` защищён guard'ом (target обязан быть `\ontoindex` и пустым/нашим).
+- Не найдено: eval/new Function/vm, shell:true, execSync с пользовательским вводом.
+
+Остаточные риски (низкие, как в основном аудите): F5 prompt-injection доверенных репо; F6 HTTP API
+не используется; рекомендация динамического наблюдения первого запуска — ВЫПОЛНЕНА (отчёт `01_…`).
+
 ## Ограничения аудита
 
 - Статический анализ исходников; зависимости с npm (содержимое пакетов tree-sitter-*, 
