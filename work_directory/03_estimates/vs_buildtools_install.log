@@ -1,0 +1,54 @@
+Chocolatey v2.7.1
+Chocolatey detected you are not running from an elevated command shell
+ (cmd/powershell).
+
+ You may experience errors - many functions/packages
+ require admin rights. Only advanced users should run choco w/out an
+ elevated shell. When you open the command shell, you should ensure
+ that you do so with "Run as Administrator" selected. If you are
+ attempting to use Chocolatey in a non-administrator setting, you
+ must select a different location other than the default install
+ location. See
+ https://docs.chocolatey.org/en-us/choco/setup#non-administrative-install
+ for details.
+
+For the question below, you have 20 seconds to make a selection.
+
+ Do you want to continue?([Y]es/[N]o): 
+Timeout or your choice of '' is not a valid selection.
+Installing the following packages:
+visualstudio2022buildtools
+By installing, you accept licenses for the packages.
+Downloading package from source 'https://community.chocolatey.org/api/v2/'
+chocolatey-visualstudio.extension not installed. An error occurred during installation:
+ Unable to obtain lock file access on 'C:\ProgramData\chocolatey\lib\fe01c7c2e383bdd806a2a162b9defd9fba72644e' for operations on 'C:\ProgramData\chocolatey\lib\chocolatey-visualstudio.extension'. This may mean that a different user or administrator is holding this lock and that this process does not have permission to access it. If no other process is currently performing an operation on this file it may mean that an earlier NuGet process crashed and left an inaccessible lock file, in this case removing the file 'C:\ProgramData\chocolatey\lib\fe01c7c2e383bdd806a2a162b9defd9fba72644e' will allow NuGet to continue.
+chocolatey-visualstudio.extension package files install failed with exit code 1. Performing other installation steps.
+The install of chocolatey-visualstudio.extension was NOT successful.
+chocolatey-visualstudio.extension not installed. An error occurred during installation:
+ Unable to obtain lock file access on 'C:\ProgramData\chocolatey\lib\fe01c7c2e383bdd806a2a162b9defd9fba72644e' for operations on 'C:\ProgramData\chocolatey\lib\chocolatey-visualstudio.extension'. This may mean that a different user or administrator is holding this lock and that this process does not have permission to access it. If no other process is currently performing an operation on this file it may mean that an earlier NuGet process crashed and left an inaccessible lock file, in this case removing the file 'C:\ProgramData\chocolatey\lib\fe01c7c2e383bdd806a2a162b9defd9fba72644e' will allow NuGet to continue.
+This is try 1/3. Retrying after 300 milliseconds.
+ Error converted to warning:
+ Отказано в доступе по пути "C:\ProgramData\chocolatey\lib-bad".
+This is try 2/3. Retrying after 400 milliseconds.
+ Error converted to warning:
+ Отказано в доступе по пути "C:\ProgramData\chocolatey\lib-bad".
+Maximum tries of 3 reached. Throwing error.
+Cannot create directory "C:\ProgramData\chocolatey\lib-bad". Error was:
+System.UnauthorizedAccessException: Отказано в доступе по пути "C:\ProgramData\chocolatey\lib-bad".
+   в System.IO.__Error.WinIOError(Int32 errorCode, String maybeFullPath)
+   в System.IO.Directory.InternalCreateDirectory(String fullPath, String path, Object dirSecurityObj, Boolean checkHost)
+   в System.IO.Directory.InternalCreateDirectoryHelper(String path, Boolean checkHost)
+   в chocolatey.infrastructure.filesystem.DotNetFileSystem.<>c__DisplayClass63_0.<CreateDirectory>b__1()
+   в chocolatey.infrastructure.tolerance.FaultTolerance.<>c__DisplayClass1_0.<Retry>b__0()
+   в chocolatey.infrastructure.tolerance.FaultTolerance.Retry[T](Int32 numberOfTries, Func`1 function, Int32 waitDurationMilliseconds, Int32 increaseRetryByMilliseconds, Boolean isSilent)
+   в chocolatey.infrastructure.tolerance.FaultTolerance.Retry(Int32 numberOfTries, Action action, Int32 waitDurationMilliseconds, Int32 increaseRetryByMilliseconds, Boolean isSilent)
+   в chocolatey.infrastructure.filesystem.DotNetFileSystem.CreateDirectory(String directoryPath, Boolean isSilent)
+   в chocolatey.infrastructure.filesystem.DotNetFileSystem.EnsureDirectoryExists(String directoryPath, Boolean ignoreError, Boolean isSilent)
+
+Chocolatey installed 0/0 packages. 
+ See the log for details (C:\ProgramData\chocolatey\logs\chocolatey.log).
+
+Enjoy using Chocolatey? Explore more amazing features to take your
+experience to the next level at
+ https://chocolatey.org/compare
+Отказано в доступе по пути "C:\ProgramData\chocolatey\lib-bad".
