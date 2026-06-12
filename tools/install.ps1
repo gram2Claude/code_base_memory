@@ -3,7 +3,8 @@
 # собирает, создаёт глобальный шим `ontoindex` и маркер версии. Идемпотантен.
 # Запуск:  powershell -ExecutionPolicy Bypass -File tools\install.ps1
 param(
-    [string]$EngineDir = (Join-Path $env:USERPROFILE '.claude\tools\ontoindex')
+    [string]$EngineDir = (Join-Path $env:USERPROFILE '.claude\tools\ontoindex'),
+    [switch]$Prebuilt   # node_modules+dist уже распакованы в срез из CI-бандла (нет MSVC) — npm ci/build пропускаются
 )
 $ErrorActionPreference = 'Stop'
 $RepoRoot = Split-Path -Parent $PSScriptRoot
@@ -14,26 +15,36 @@ if (-not (Test-Path (Join-Path $Src 'ontoindex\package.json'))) {
     throw "Вендоренный срез не найден: $Src"
 }
 
-Write-Host "[1/5] Копирование среза -> $EngineDir (node_modules/dist в целевом не трогаем)"
+if ($Prebuilt) {
+    foreach ($need in @('ontoindex\node_modules', 'ontoindex\dist')) {
+        if (-not (Test-Path (Join-Path $Src $need))) { throw "-Prebuilt: в срезе нет $need — распакуй engine-bundle.tgz (см. README, «Установка без MSVC»)" }
+    }
+}
+Write-Host "[1/5] Копирование среза -> $EngineDir"
 New-Item -ItemType Directory -Force $EngineDir | Out-Null
 # /MIR с /XD: исключённые каталоги не копируются И не удаляются в целевом — повторный
 # запуск не сносит установленные node_modules и собранный dist.
-robocopy $Src $EngineDir /MIR /NFL /NDL /NJH /NJS /NP `
-    /XD node_modules dist .ontoindex .git .history | Out-Null
+$xd = @('.ontoindex', '.git', '.history')
+if (-not $Prebuilt) { $xd += @('node_modules', 'dist') }
+robocopy $Src $EngineDir /MIR /NFL /NDL /NJH /NJS /NP /XD @xd | Out-Null
 if ($LASTEXITCODE -ge 8) { throw "robocopy failed: $LASTEXITCODE" }
 
-Write-Host "[2/5] npm ci (пакет ontoindex; НЕ корень монорепо — prepare:husky без .git падает)"
-Push-Location (Join-Path $EngineDir 'ontoindex')
-try {
-    # Node >=24/npm 11: peer-конфликты optional-грамматик требуют legacy-peer-deps
-    # (апстрим живёт на Node 20/npm 10, где npm ci это не валидировал).
-    npm ci --legacy-peer-deps --no-fund --no-audit
-    if ($LASTEXITCODE -ne 0) { throw "npm ci failed: $LASTEXITCODE" }
+if ($Prebuilt) {
+    Write-Host "[2-3/5] Пропущено (Prebuilt: node_modules+dist из CI-бандла скопированы как есть)"
+} else {
+    Write-Host "[2/5] npm ci (пакет ontoindex; НЕ корень монорепо — prepare:husky без .git падает)"
+    Push-Location (Join-Path $EngineDir 'ontoindex')
+    try {
+        # Node >=24/npm 11: peer-конфликты optional-грамматик требуют legacy-peer-deps
+        # (апстрим живёт на Node 20/npm 10, где npm ci это не валидировал).
+        npm ci --legacy-peer-deps --no-fund --no-audit
+        if ($LASTEXITCODE -ne 0) { throw "npm ci failed: $LASTEXITCODE" }
 
-    Write-Host "[3/5] Сборка (build.js: ontoindex-shared + ontoindex + super-dispatch валидация)"
-    npm run build
-    if ($LASTEXITCODE -ne 0) { throw "npm run build failed: $LASTEXITCODE" }
-} finally { Pop-Location }
+        Write-Host "[3/5] Сборка (build.js: ontoindex-shared + ontoindex + super-dispatch валидация)"
+        npm run build
+        if ($LASTEXITCODE -ne 0) { throw "npm run build failed: $LASTEXITCODE" }
+    } finally { Pop-Location }
+}
 
 Write-Host "[3.5/5] Скил-движок (memory_code.ps1 + шаблон CLAUDE-блока) + скил в реестр Claude"
 $SkillDir = Join-Path $EngineDir 'skill'
