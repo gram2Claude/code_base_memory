@@ -2,11 +2,18 @@
 # Зачем: на целевой машине нет прав администратора → нет MSVC → node-gyp не может
 # собрать tree-sitter (npm-пакет 0.25 публикуется без prebuilds). Раннер windows-2022 —
 # та же ОС, что хост (Windows Server 2022), Node 24 → бинарно совместимый bundle.
+# Триггер: push файла .github/engine-build-request (PAT без Actions:write не умеет dispatch).
+# Результат: release-asset engine-bundle.tgz в релизе engine-bundle-win-node24
+# (артефакты Actions недоступны нашему PAT, release-asset качается с contents:read).
 name: build-engine
 on:
-  workflow_dispatch: {}
+  push:
+    branches: [oleg, main]
+    paths:
+      - '.github/engine-build-request'
+      - '.github/workflows/build-engine.yml'
 permissions:
-  contents: read
+  contents: write
 jobs:
   build:
     runs-on: windows-2022
@@ -33,9 +40,13 @@ jobs:
       - name: pack bundle (dereference file:-symlinks)
         working-directory: ontoindex/ontoindex
         run: tar -czLf engine-bundle.tgz node_modules dist grammar-inventory.txt
-      - uses: actions/upload-artifact@v4
-        with:
-          name: engine-bundle
-          path: ontoindex/ontoindex/engine-bundle.tgz
-          retention-days: 14
-          compression-level: 0
+      - name: publish as release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = 'engine-bundle-win-node24'
+          gh release delete $tag --yes --cleanup-tag 2>$null; if ($LASTEXITCODE -ne 0) { Write-Host 'no previous release' }
+          gh release create $tag ontoindex/ontoindex/engine-bundle.tgz `
+            --title 'Engine bundle (win32-x64, Node 24)' `
+            --notes ('built from ' + $env:GITHUB_SHA + ' on windows-2022') `
+            --target $env:GITHUB_SHA
