@@ -41,14 +41,22 @@ MCP-транспорт — stdio (сетевого слушателя нет by 
 все 3 пилотных tools/call прошли в окне общего сэмплера без новых внешних назначений
 в моменты вызовов.
 
-## Путь embedder → huggingface.co (F10)
+## Путь embedder → huggingface.co (F10) — закрыт ТЕХНИЧЕСКИ
 
-Контроль: `src/mcp/core/embedder.ts:72` (`env.allowLocalModels=false`). Меры в поставке:
-- режим on строит индекс БЕЗ `--embeddings`;
-- инструкции (claude_block.md) запрещают семантический режим до офлайн-модели;
-- семантический запрос в смоук НЕ включается намеренно (мы НЕ предзагружаем модель) —
-  вместо этого запрет на уровне инструкций + отсутствие эмбеддингов в индексе
-  (semantic search без эмбеддингов деградирует в graph/BM25-поиск движка).
+Контроль: `src/mcp/core/embedder.ts` (`env.allowLocalModels=false` → загрузка модели с HF).
+**Наш патч (по ревью реализации):** `initEmbedder()` бросает исключение, если
+`ONTOINDEX_DISABLE_SEMANTIC=1`, ДО любого обращения к сети. Этот env проставляется режимом
+`on` в `.mcp.json` проекта (+ `HF_HUB_OFFLINE=1`, `TRANSFORMERS_OFFLINE=1`).
+
+**Доказательство (unit):** `ONTOINDEX_DISABLE_SEMANTIC=1 node -e "initEmbedder()"` →
+`GATE OK — blocked: Semantic/embedding mode is disabled by CBM offline policy`. Модель не
+скачивается. Дополнительно: режим on строит индекс БЕЗ `--embeddings`, инструкции запрещают
+семантический режим; плоский `search action:semantic` уходит по FTS/graph-пути (эмбеддер не
+вызывается). Таким образом путь в HF закрыт и политикой, и технически.
+
+Сопутствующая локальная телеметрия движка (`tool-telemetry.ts` → `~/.ontoindex/telemetry.jsonl`,
+`query-log.ts` → `~/.ontoindex/logs/`) — НЕ сетевая, но по умолчанию включена у апстрима;
+наш патч выключает её через `ONTOINDEX_TOOL_TELEMETRY=0` / `ONTOINDEX_QUERY_LOG=0` в env on.
 
 ## Итог
 

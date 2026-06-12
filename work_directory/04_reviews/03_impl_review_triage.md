@@ -40,7 +40,18 @@
 - **PostToolUse regex не ловит `git -c/-C`** — апстрим-логика, низкий приоритет, не трогаем.
 - **tree-sitter-proto/ontoindex-native не собраны** — optional, JS-путь работает (пилот §6).
 
+## Доп. находка при верификации (исправлена)
+
+**MAJOR · `tools/memory_code.ps1` clear-hard registry-cleanup** — реестр ontoindex это
+JSON-МАССИВ, а `ConvertTo-Json` в PS схлопывает одноэлементный массив в объект → после
+clear-hard в смоуке глобальный `~/.ontoindex/registry.json` стал объектом, и MCP-сервер
+падал с «registry.json must contain an array». Исправлено: round-trip реестра делает node
+(сохраняет форму массива), не PS. Реестр восстановлен; повторный semantic-вызов прошёл.
+
 ## Повторная проверка после фиксов
-- smoke_memory_code.ps1: **20/20 PASS** (добавлен инвариант .ontoindexignore).
-- Реактивация on на этом репо: BOM=False во всех конфигах, env-гейты проставлены.
-- Augment-хук вживую: возвращает граф-контекст (major #1 закрыт фактически).
+- smoke_memory_code.ps1: **22/22 PASS** (+ инварианты .ontoindexignore, BOM-free, env-гейт).
+- Реактивация on на этом репо: BOM=False во всех конфигах, 8 env-гейтов проставлены.
+- **Augment-хук вживую: возвращает граф-контекст** («2 related symbols found») — major #1 закрыт.
+- **Stale-детект (PostToolUse) вживую: сработал на git commit** этой сессии — t11 подтверждён.
+- **F10-гейт (unit): `initEmbedder` бросает при ONTOINDEX_DISABLE_SEMANTIC=1** до сети — t04 закрыт технически.
+- registry round-trip через node: clear-hard больше не ломает форму массива.

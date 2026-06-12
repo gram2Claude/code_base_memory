@@ -211,24 +211,20 @@ switch ($Mode) {
     foreach ($p in @($IdxDir, (Join-Path $Project '.trash\memory_code'))) {
         if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Recurse -Force -Confirm:$false }
     }
-    # Глобальный реестр: убрать запись проекта (формат реестра — best effort, оба варианта)
+    # Глобальный реестр: убрать запись проекта. Реестр ontoindex — JSON-МАССИВ объектов
+    # {name,path,storagePath,...}. Round-trip делаем через node (PS ConvertTo-Json
+    # схлопывает одноэлементный массив в объект и ломает реестр — урок ревью-смоука).
     $reg = Join-Path $env:USERPROFILE '.ontoindex\registry.json'
-    if (Test-Path $reg) {
+    if (Test-Path -LiteralPath $reg) {
         try {
-            $j = Get-Content $reg -Raw -Encoding utf8 | ConvertFrom-Json
-            $proj = $Project -replace '\\','/'
-            if ($j.PSObject.Properties['repos'] -and $j.repos -is [array]) {
-                $j.repos = @($j.repos | Where-Object { ($_.path -replace '\\','/') -ne $proj })
-            } else {
-                foreach ($p in @($j.PSObject.Properties)) {
-                    $v = $p.Value
-                    if (($v -is [string] -and ($v -replace '\\','/') -eq $proj) -or
-                        ($v.PSObject.Properties['path'] -and (($v.path -replace '\\','/') -eq $proj))) {
-                        $j.PSObject.Properties.Remove($p.Name)
-                    }
-                }
-            }
-            Write-Json $reg $j
+            $code = @'
+const fs=require('fs'); const [reg,proj]=process.argv.slice(1);
+let j; try{ j=JSON.parse(fs.readFileSync(reg,'utf8')); }catch{ process.exit(0); }
+const norm=s=>String(s||'').replace(/\\/g,'/').replace(/\/+$/,'');
+const p=norm(proj);
+if(Array.isArray(j)){ const out=j.filter(e=>norm(e&&e.path)!==p); fs.writeFileSync(reg, JSON.stringify(out,null,2)+'\n'); }
+'@
+            node -e $code $reg $Project
         } catch { Write-Warning "registry.json: не удалось обновить ($_)" }
     }
     Write-Host "CLEAR --HARD: индекс, .trash и запись реестра удалены"
