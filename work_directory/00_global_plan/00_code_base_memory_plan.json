@@ -37,8 +37,10 @@
               "pessimistic_h": 3,
               "estimate_h": 2.25,
               "ai_estimate_h": 0.5,
-              "status": "todo",
-              "plane_identifier": "CBM-1"
+              "status": "done",
+              "plane_identifier": "CBM-1",
+              "done_at": "2026-06-12",
+              "merge_sha": "70e0ff9"
             },
             {
               "id": "t02",
@@ -50,8 +52,10 @@
               "pessimistic_h": 5,
               "estimate_h": 4,
               "ai_estimate_h": 1.5,
-              "status": "todo",
-              "plane_identifier": "CBM-2"
+              "status": "done",
+              "plane_identifier": "CBM-2",
+              "done_at": "2026-06-12",
+              "merge_sha": "70e0ff9"
             },
             {
               "id": "t03",
@@ -63,8 +67,9 @@
               "pessimistic_h": 9,
               "estimate_h": 6.5,
               "ai_estimate_h": 2,
-              "status": "todo",
-              "plane_identifier": "CBM-3"
+              "status": "done",
+              "plane_identifier": "CBM-3",
+              "done_at": "2026-06-12"
             },
             {
               "id": "t04",
@@ -76,8 +81,9 @@
               "pessimistic_h": 6,
               "estimate_h": 4.5,
               "ai_estimate_h": 1.25,
-              "status": "todo",
-              "plane_identifier": "CBM-4"
+              "status": "done",
+              "plane_identifier": "CBM-4",
+              "done_at": "2026-06-12"
             },
             {
               "id": "t19",
@@ -89,8 +95,10 @@
               "pessimistic_h": 3,
               "estimate_h": 2.25,
               "ai_estimate_h": 0.75,
-              "status": "todo",
-              "plane_identifier": "CBM-5"
+              "status": "done",
+              "plane_identifier": "CBM-5",
+              "done_at": "2026-06-12",
+              "merge_sha": "70e0ff9"
             },
             {
               "id": "s1.1.misc",
@@ -135,8 +143,10 @@
               "pessimistic_h": 8,
               "estimate_h": 6,
               "ai_estimate_h": 2,
-              "status": "todo",
-              "plane_identifier": "CBM-7"
+              "status": "done",
+              "plane_identifier": "CBM-7",
+              "done_at": "2026-06-12",
+              "merge_sha": "70e0ff9"
             },
             {
               "id": "t06",
@@ -148,8 +158,10 @@
               "pessimistic_h": 3,
               "estimate_h": 2.25,
               "ai_estimate_h": 0.75,
-              "status": "todo",
-              "plane_identifier": "CBM-8"
+              "status": "done",
+              "plane_identifier": "CBM-8",
+              "done_at": "2026-06-12",
+              "merge_sha": "70e0ff9"
             },
             {
               "id": "s2.1.misc",
@@ -194,8 +206,10 @@
               "pessimistic_h": 3.5,
               "estimate_h": 2.75,
               "ai_estimate_h": 1,
-              "status": "todo",
-              "plane_identifier": "CBM-10"
+              "status": "done",
+              "plane_identifier": "CBM-10",
+              "done_at": "2026-06-12",
+              "merge_sha": "70e0ff9"
             },
             {
               "id": "t08",
@@ -207,8 +221,10 @@
               "pessimistic_h": 10,
               "estimate_h": 7.5,
               "ai_estimate_h": 2.5,
-              "status": "todo",
-              "plane_identifier": "CBM-11"
+              "status": "done",
+              "plane_identifier": "CBM-11",
+              "done_at": "2026-06-12",
+              "merge_sha": "70e0ff9"
             },
             {
               "id": "t09",
@@ -220,8 +236,10 @@
               "pessimistic_h": 3,
               "estimate_h": 2.25,
               "ai_estimate_h": 0.75,
-              "status": "todo",
-              "plane_identifier": "CBM-12"
+              "status": "done",
+              "plane_identifier": "CBM-12",
+              "done_at": "2026-06-12",
+              "merge_sha": "70e0ff9"
             },
             {
               "id": "s3.1.misc",
@@ -255,8 +273,10 @@
               "pessimistic_h": 3,
               "estimate_h": 2.25,
               "ai_estimate_h": 0.75,
-              "status": "todo",
-              "plane_identifier": "CBM-14"
+              "status": "done",
+              "plane_identifier": "CBM-14",
+              "done_at": "2026-06-12",
+              "merge_sha": "70e0ff9"
             },
             {
               "id": "t11",
@@ -268,8 +288,10 @@
               "pessimistic_h": 6,
               "estimate_h": 4.75,
               "ai_estimate_h": 1.5,
-              "status": "todo",
-              "plane_identifier": "CBM-15"
+              "status": "done",
+              "plane_identifier": "CBM-15",
+              "done_at": "2026-06-12",
+              "merge_sha": "70e0ff9"
             },
             {
               "id": "t12",
@@ -281,8 +303,9 @@
               "pessimistic_h": 6,
               "estimate_h": 4.5,
               "ai_estimate_h": 1.25,
-              "status": "todo",
-              "plane_identifier": "CBM-16"
+              "status": "done",
+              "plane_identifier": "CBM-16",
+              "done_at": "2026-06-12"
             },
             {
               "id": "t20",
@@ -294,8 +317,9 @@
               "pessimistic_h": 4,
               "estimate_h": 3,
               "ai_estimate_h": 1,
-              "status": "todo",
-              "plane_identifier": "CBM-17"
+              "status": "done",
+              "plane_identifier": "CBM-17",
+              "done_at": "2026-06-12"
             },
             {
               "id": "s3.2.misc",
@@ -340,8 +364,10 @@
               "pessimistic_h": 3,
               "estimate_h": 2.25,
               "ai_estimate_h": 0.75,
-              "status": "todo",
-              "plane_identifier": "CBM-19"
+              "status": "done",
+              "plane_identifier": "CBM-19",
+              "done_at": "2026-06-12",
+              "merge_sha": "70e0ff9"
             },
             {
               "id": "t14",
@@ -353,8 +379,10 @@
               "pessimistic_h": 5,
               "estimate_h": 3.75,
               "ai_estimate_h": 1.25,
-              "status": "todo",
-              "plane_identifier": "CBM-20"
+              "status": "done",
+              "plane_identifier": "CBM-20",
+              "done_at": "2026-06-12",
+              "merge_sha": "70e0ff9"
             },
             {
               "id": "s4.1.misc",
@@ -399,8 +427,10 @@
               "pessimistic_h": 4,
               "estimate_h": 3,
               "ai_estimate_h": 1,
-              "status": "todo",
-              "plane_identifier": "CBM-22"
+              "status": "done",
+              "plane_identifier": "CBM-22",
+              "done_at": "2026-06-12",
+              "merge_sha": "70e0ff9"
             },
             {
               "id": "t16",
@@ -412,8 +442,9 @@
               "pessimistic_h": 12,
               "estimate_h": 9,
               "ai_estimate_h": 2.5,
-              "status": "todo",
-              "plane_identifier": "CBM-23"
+              "status": "done",
+              "plane_identifier": "CBM-23",
+              "done_at": "2026-06-12"
             },
             {
               "id": "s5.1.misc",
@@ -447,8 +478,9 @@
               "pessimistic_h": 3.5,
               "estimate_h": 2.75,
               "ai_estimate_h": 1,
-              "status": "todo",
-              "plane_identifier": "CBM-25"
+              "status": "done",
+              "plane_identifier": "CBM-25",
+              "done_at": "2026-06-12"
             },
             {
               "id": "t18",
@@ -460,8 +492,9 @@
               "pessimistic_h": 2,
               "estimate_h": 1.5,
               "ai_estimate_h": 0.5,
-              "status": "todo",
-              "plane_identifier": "CBM-26"
+              "status": "done",
+              "plane_identifier": "CBM-26",
+              "done_at": "2026-06-12"
             },
             {
               "id": "s5.2.misc",

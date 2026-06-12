@@ -1,0 +1,29 @@
+{
+  "pending_registry_done": [],
+  "branch_sha": {
+    "main": "70e0ff9ea6326e3cfe539104bffe0df33493537c"
+  },
+  "snapshot": {
+    "total_h": 99.75,
+    "done_h": 99.75,
+    "total_n": 27,
+    "done_n": 27,
+    "pct": 100,
+    "planned_finish": "2026-07-06",
+    "projected_finish": "2026-07-06",
+    "delta_days": 0,
+    "overdue": [],
+    "unplanned": {
+      "n": 0,
+      "minutes": 0
+    },
+    "health": {
+      "db_ok": true,
+      "github_ok": true,
+      "pending_count": 0,
+      "baseline_status": "ok"
+    }
+  },
+  "last_sync": "2026-06-12T19:34:11.388Z",
+  "target_branch": "main"
+}
