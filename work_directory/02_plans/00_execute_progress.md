@@ -61,3 +61,10 @@
   загрузки: портативный Node 22 (zip, без админа) только для движка.
 - README (CBM-25) написан; install.ps1 получил -Prebuilt; смоук движка готов
   (tests/smoke_engine.mjs: analyze + MCP stdio handshake).
+- CI-прогон №2 (Node 22): нативные модули СОБРАЛИСЬ; упал prepare/build.js — соседнему
+  ontoindex-shared нужны свои node_modules (npx tsc). Фикс: npm ci в shared первым шагом
+  (workflow + install.ps1). Прогон №3 — ждём (монитор b8o2cynac).
+- CBM-16 часть 1 (скриптовая) — PASS, отчёт 04_reviews/01_coexistence_qa.md; часть 2 — чек-лист
+  заготовлен, закрывается пилотом CBM-23.
+- Замечание для пилота: MCP-сервер проекта доступен НОВЫМ сессиям Claude; в текущей сессии
+  функциональную проверку инструментов делаем JSON-RPC клиентом по stdio (честно фиксируем).
