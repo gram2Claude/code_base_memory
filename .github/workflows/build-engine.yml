@@ -22,9 +22,12 @@ jobs:
         shell: pwsh
     steps:
       - uses: actions/checkout@v4
+      # Node 22, НЕ 24: V8-заголовки Node 24 требуют C++20, а tree-sitter 0.25 собирает
+      # binding с /std:c++17 (#error C1189). Модули N-API → ABI-стабильны, бандл,
+      # собранный на 22, работает под локальным Node 24.
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '22'
       - name: npm ci (native builds, legacy-peer-deps)
         working-directory: ontoindex/ontoindex
         run: npm ci --legacy-peer-deps --no-fund --no-audit
