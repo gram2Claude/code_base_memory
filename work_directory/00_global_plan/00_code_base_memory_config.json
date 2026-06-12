@@ -1,0 +1,22 @@
+{
+  "project_name": "Code Base Memory — универсальный скил памяти кодовой базы (на базе ontoindex)",
+  "project_slug": "code_base_memory",
+  "start_date": "2026-06-12",
+  "calendar_region": "RU",
+  "work_hours_per_day": 8,
+  "work_days": "Mon-Fri",
+  "misc_rate": 0.30,
+  "github_account": "gram2Claude",
+  "github_repo": "code_base_memory",
+  "repo_visibility": "public",
+  "sync_times_msk": ["08:00", "14:00", "17:00"],
+  "dev_branch": "oleg",
+  "target_branch": "main",
+  "project_type": "lib",
+  "install_cmd": "TBD",
+  "test_cmd": "TBD",
+  "run_cmd": "TBD",
+  "smoke_url": null,
+  "plane_identifier": "CBM",
+  "notes": "Репо уже существует (создан 2026-06-12, ветка main запушена). Timechecker: slug code_base_memory, prefix CBM, branch oleg — зарегистрирован. target_branch=main (не master): репо инициализирован с main до publish-фазы."
+}

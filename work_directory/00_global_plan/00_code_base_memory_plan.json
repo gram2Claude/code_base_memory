@@ -1,0 +1,483 @@
+{
+  "project": {
+    "slug": "code_base_memory",
+    "name": "Code Base Memory — универсальный скил памяти кодовой базы (на базе ontoindex)",
+    "plane_identifier": "CBM",
+    "start_date": "2026-06-12",
+    "misc_rate": 0.3,
+    "global_h": 99.75,
+    "global_end_date": "2026-07-06",
+    "global_ai_h": 31.5
+  },
+  "epochs": [
+    {
+      "id": "e1",
+      "name": "Э1. Вендоринг и безопасность",
+      "order": 1,
+      "epoch_h": 25.25,
+      "start_date": "2026-06-15",
+      "end_date": "2026-06-18",
+      "sprints": [
+        {
+          "id": "s1.1",
+          "name": "Локальный срез + меры безопасности",
+          "order": 1,
+          "sprint_h": 25.25,
+          "sprint_days": 4,
+          "start_date": "2026-06-15",
+          "end_date": "2026-06-18",
+          "tasks": [
+            {
+              "id": "t01",
+              "name": "Замена submodule на вендоренный срез монорепо",
+              "description": "Деинициализировать submodule ontoindex, удалить .gitmodules и ontoindex/.git, закоммитить ВЕСЬ срез монорепо (Q5: целиком) по тому же пути ontoindex/. Исключения из среза: .git и .history/ (локальная история редактора апстрим-разработчика — мусор). LICENSE/NOTICE сохранены, срез b373fdf зафиксирован в ONTOINDEX_OVERVIEW.md.",
+              "done_criteria": "Свежий clone gram2Claude/code_base_memory содержит полные исходники ontoindex без обращения к ontograph/ontoindex; .git и .history в срезе отсутствуют; git status чистый; b373fdf задокументирован.",
+              "task_type": "code",
+              "realistic_h": 1.5,
+              "pessimistic_h": 3,
+              "estimate_h": 2.25,
+              "ai_estimate_h": 0.5,
+              "status": "todo",
+              "plane_identifier": "CBM-1"
+            },
+            {
+              "id": "t02",
+              "name": "Применение security-мер из ревью (scarf, F4, npx→локальный путь)",
+              "description": "Удалить @scarf/scarf из ontoindex/package.json (+lock); патч --end-of-options в src/mcp/local/backend-detect-changes.ts (F4); заменить npx -y ontoindex@latest на локальный путь движка в hooks плагина (ontoindex-claude-plugin, ontoindex-cursor-integration). Изменения задокументировать в 05_security.",
+              "done_criteria": "Scoped-проверка: в runtime/agent-facing файлах (package.json+lock, hooks, mcp.json, skills, src/cli) нет @scarf/scarf и вызовов npx ontoindex (оба варианта: «npx -y ontoindex» и «npx ontoindex@latest»; упоминания в docs/README допустимы); патч F4 на месте; чек-лист ревью пункты 1, 4, 5 закрыты.",
+              "task_type": "code",
+              "realistic_h": 3,
+              "pessimistic_h": 5,
+              "estimate_h": 4,
+              "ai_estimate_h": 1.5,
+              "status": "todo",
+              "plane_identifier": "CBM-2"
+            },
+            {
+              "id": "t03",
+              "name": "Windows-сборка и смоук вендоренного среза",
+              "description": "npm install + build среза на Windows (node-gyp/MSVC — главный риск проекта); смоук: ontoindex analyze на тестовой папке, MCP stdio handshake (список инструментов). Зафиксировать шаги установки (основа для install.ps1 в Э2).",
+              "done_criteria": "Индекс .ontoindex/ создаётся; MCP-сервер по stdio возвращает список инструментов; проверен СПИСОК собранных грамматик (вкл. proto/swift — postinstall у optional-парсеров падает «мягко», exit 0); ЦЕЛЕВАЯ ВЕРСИЯ Node выбрана, задокументирована и проверена сборкой (на машине 24, .nvmrc 20, спека 22); проверен graceful-skip git-зависимости tree-sitter-dart без сети (или tarball закэширован в срез); при провале node-gyp решение о pre-built node_modules регистрируется как отдельная работа (timechecker task add); шаги установки записаны в work_directory.",
+              "task_type": "qa",
+              "realistic_h": 4,
+              "pessimistic_h": 9,
+              "estimate_h": 6.5,
+              "ai_estimate_h": 2,
+              "status": "todo",
+              "plane_identifier": "CBM-3"
+            },
+            {
+              "id": "t04",
+              "name": "Динамический контроль сетевой активности первого запуска",
+              "description": "Контрольная задача из security-ревью: мониторинг исходящих соединений процессов node по фазам (без LLM-ключей). Фаза install — допускается ТОЛЬКО allowlist (registry.npmjs.org; github.com для git-зависимости tree-sitter-dart); фазы analyze/mcp/query — строгий ноль. В сценарий ОБЯЗАТЕЛЬНО включить первый семантический запрос через MCP: src/mcp/core/embedder.ts:72 ставит env.allowLocalModels=false — transformers.js при первом обращении тянет модель с huggingface.co (дыра мимо чек-листа F2). Отчёт в 05_security.",
+              "done_criteria": "Отчёт: install — только allowlist-назначения; analyze/mcp/query (вкл. первый семантический запрос) — ноль исходящих; путь embedder→huggingface закрыт (HF_HUB_OFFLINE/предзагрузка в кэш или семантический режим отключён); отклонения разобраны.",
+              "task_type": "research",
+              "realistic_h": 3,
+              "pessimistic_h": 6,
+              "estimate_h": 4.5,
+              "ai_estimate_h": 1.25,
+              "status": "todo",
+              "plane_identifier": "CBM-4"
+            },
+            {
+              "id": "t19",
+              "name": "Нейтрализация агент-конфигов внутри вендоренного среза",
+              "description": "Срез несёт вложенные CLAUDE.md/AGENTS.md/.claude/.cursor/.cursorrules/.windsurfrules/.codex и корневой ontoindex/.mcp.json с ЛИЧНЫМИ MCP-серверами апстрим-разработчика (/home/er77/..., codex/gemini/copilot, npx -y @soflution/mcp-on-demand — сетевая установка стороннего пакета). Вложенные CLAUDE.md автоматически подгружаются в сессии Claude при работе в подпапках ontoindex/. Удалить/нейтрализовать эти файлы в срезе (или вынести в _upstream_docs).",
+              "done_criteria": "Claude-сессия в подпапке ontoindex/ не подхватывает апстрим-инструкций и не предлагает чужих MCP-серверов; ontoindex/.mcp.json с личными серверами апстрима удалён из среза; решение задокументировано в 05_security.",
+              "task_type": "code",
+              "realistic_h": 1.5,
+              "pessimistic_h": 3,
+              "estimate_h": 2.25,
+              "ai_estimate_h": 0.75,
+              "status": "todo",
+              "plane_identifier": "CBM-5"
+            },
+            {
+              "id": "s1.1.misc",
+              "name": "Прочие работы",
+              "task_type": "misc",
+              "auto": true,
+              "status": "done",
+              "estimate_h": 5.75,
+              "ai_estimate_h": 1.75,
+              "plane_identifier": "CBM-6"
+            }
+          ],
+          "sprint_ai_h": 7.75
+        }
+      ],
+      "epoch_ai_h": 7.75
+    },
+    {
+      "id": "e2",
+      "name": "Э2. Глобальный движок на машине",
+      "order": 2,
+      "epoch_h": 10.75,
+      "start_date": "2026-06-19",
+      "end_date": "2026-06-22",
+      "sprints": [
+        {
+          "id": "s2.1",
+          "name": "Движок в ~/.claude/tools/ontoindex",
+          "order": 1,
+          "sprint_h": 10.75,
+          "sprint_days": 2,
+          "start_date": "2026-06-19",
+          "end_date": "2026-06-22",
+          "tasks": [
+            {
+              "id": "t05",
+              "name": "install.ps1 — разворачивание движка из среза",
+              "description": "Скрипт установки движка из vendor-среза в ~/.claude/tools/ontoindex/: копирование (ВЕСЬ срез — пакет ontoindex зависит от file:../ontoindex-shared и file:./vendor/tree-sitter-proto, по одному не установится), npm install В ПАКЕТЕ ontoindex/ (НЕ в корне монорепо: prepare:husky без .git падает), build, проверка CLI. Идемпотентный повторный запуск.",
+              "done_criteria": "ontoindex CLI отрабатывает из любого каталога; повторный запуск install.ps1 безопасен (вкл. native-артефакты); путь движка зафиксирован для скила.",
+              "task_type": "code",
+              "realistic_h": 4,
+              "pessimistic_h": 8,
+              "estimate_h": 6,
+              "ai_estimate_h": 2,
+              "status": "todo",
+              "plane_identifier": "CBM-7"
+            },
+            {
+              "id": "t06",
+              "name": "update.ps1 + фиксация версии движка",
+              "description": "Обновление движка из vendor-среза с сохранением индексов проектов; маркер версии (срез b373fdf + наши патчи).",
+              "done_criteria": "Повторная установка/обновление не ломает существующие .ontoindex/ проектов; версия движка читается командой/файлом.",
+              "task_type": "code",
+              "realistic_h": 1.5,
+              "pessimistic_h": 3,
+              "estimate_h": 2.25,
+              "ai_estimate_h": 0.75,
+              "status": "todo",
+              "plane_identifier": "CBM-8"
+            },
+            {
+              "id": "s2.1.misc",
+              "name": "Прочие работы",
+              "task_type": "misc",
+              "auto": true,
+              "status": "done",
+              "estimate_h": 2.5,
+              "ai_estimate_h": 0.75,
+              "plane_identifier": "CBM-9"
+            }
+          ],
+          "sprint_ai_h": 3.5
+        }
+      ],
+      "epoch_ai_h": 3.5
+    },
+    {
+      "id": "e3",
+      "name": "Э3. Скил memory_code_active",
+      "order": 3,
+      "epoch_h": 35,
+      "start_date": "2026-06-23",
+      "end_date": "2026-06-30",
+      "sprints": [
+        {
+          "id": "s3.1",
+          "name": "Режимы on/off",
+          "order": 1,
+          "sprint_h": 16.25,
+          "sprint_days": 3,
+          "start_date": "2026-06-23",
+          "end_date": "2026-06-25",
+          "tasks": [
+            {
+              "id": "t07",
+              "name": "Каркас скила memory_code_active",
+              "description": "SKILL.md, триггеры («подключить кодовую память», «memory code on» и т.п.), структура режимов on/off/clear/update — по образцу memory_short_active / memory_long_active.",
+              "done_criteria": "Скил установлен в ~/.claude/skills/memory_code_active/, виден в реестре скилов новой сессии, диспетчер режимов разбирает аргументы; структура согласована с братьями-скилами.",
+              "task_type": "code",
+              "realistic_h": 2,
+              "pessimistic_h": 3.5,
+              "estimate_h": 2.75,
+              "ai_estimate_h": 1,
+              "status": "todo",
+              "plane_identifier": "CBM-10"
+            },
+            {
+              "id": "t08",
+              "name": "Режим on — активация кодовой памяти в проекте",
+              "description": "Построение индекса (.ontoindex/) глобальным движком; ПРОЕКТНАЯ регистрация MCP-сервера stdio БЕЗ --confirm-writes (внимание: апстрим setup.ts пишет глобально в ~/.claude.json — нам нужен собственный проектный механизм, .mcp.json + env ONTOINDEX_MCP_REPO/PROJECT_CWD, guard несоответствия репо); установка ЧЕРНОВИКА v0 инструкций для Claude (адаптация готового апстрим-шаблона Always/Never из ontoindex/CLAUDE.md; финализация — t15); шаблон .ontoindexignore для больших репо; .ontoindex/ в .gitignore.",
+              "done_criteria": "На чистом тестовом проекте после on Claude в новой сессии видит MCP-инструменты ontoindex и применяет их в кодовой задаче (проверка по транскрипту).",
+              "task_type": "code",
+              "realistic_h": 5,
+              "pessimistic_h": 10,
+              "estimate_h": 7.5,
+              "ai_estimate_h": 2.5,
+              "status": "todo",
+              "plane_identifier": "CBM-11"
+            },
+            {
+              "id": "t09",
+              "name": "Режим off — деактивация с сохранением индекса",
+              "description": "Снятие MCP-регистрации и инструкций; индекс .ontoindex/ сохраняется; идемпотентность (повторный off не падает).",
+              "done_criteria": "После off Claude не видит MCP ontoindex; запись проекта в глобальном ~/.ontoindex/registry.json снята или осознанно сохранена (решение задокументировано); повторный on восстанавливает работу без переиндексации.",
+              "task_type": "code",
+              "realistic_h": 1.5,
+              "pessimistic_h": 3,
+              "estimate_h": 2.25,
+              "ai_estimate_h": 0.75,
+              "status": "todo",
+              "plane_identifier": "CBM-12"
+            },
+            {
+              "id": "s3.1.misc",
+              "name": "Прочие работы",
+              "task_type": "misc",
+              "auto": true,
+              "status": "done",
+              "estimate_h": 3.75,
+              "ai_estimate_h": 1.25,
+              "plane_identifier": "CBM-13"
+            }
+          ],
+          "sprint_ai_h": 5.5
+        },
+        {
+          "id": "s3.2",
+          "name": "clear/update + сосуществование памятей",
+          "order": 2,
+          "sprint_h": 18.75,
+          "sprint_days": 3,
+          "start_date": "2026-06-26",
+          "end_date": "2026-06-30",
+          "tasks": [
+            {
+              "id": "t10",
+              "name": "Режимы clear и clear --hard",
+              "description": "clear — мягкое перемещение .ontoindex/ в .trash (восстановимо); clear --hard — окончательное удаление с подтверждением. По конвенции братьев-скилов.",
+              "done_criteria": "clear восстановим; clear --hard требует подтверждения; запись в глобальном ~/.ontoindex/registry.json согласована (stale-записи не остаются); off/on после clear отрабатывают штатно.",
+              "task_type": "code",
+              "realistic_h": 1.5,
+              "pessimistic_h": 3,
+              "estimate_h": 2.25,
+              "ai_estimate_h": 0.75,
+              "status": "todo",
+              "plane_identifier": "CBM-14"
+            },
+            {
+              "id": "t11",
+              "name": "Режим update + хуки кодовой памяти (stale-детект, augment)",
+              "description": "Переиндексация по команде; детект устаревшего индекса после git-мутаций (адаптация PostToolUse-хука из ontoindex-claude-plugin: сравнение HEAD с .ontoindex/meta.json, напоминание агенту) + адаптация PreToolUse augment-хука (тот же файл ontoindex-hook.js — добавляет граф-контекст к Grep/Glob, мягкий enforcement использования индекса).",
+              "done_criteria": "После commit/merge Claude получает напоминание об устаревшем индексе; update переиндексирует; update при ЖИВОЙ MCP-сессии отрабатывает корректно (DB lock LadybugDB: внятная ошибка/инструкция, не порча индекса — апстрим ensure-fresh.ts предупреждает); хуки корректно СМЕРЖЕНЫ с существующими хуками других памятей в .claude/settings.json; off (t09) снимает хуки кодовой памяти, не трогая чужие.",
+              "task_type": "code",
+              "realistic_h": 3.5,
+              "pessimistic_h": 6,
+              "estimate_h": 4.75,
+              "ai_estimate_h": 1.5,
+              "status": "todo",
+              "plane_identifier": "CBM-15"
+            },
+            {
+              "id": "t12",
+              "name": "QA сосуществования трёх памятей в одном проекте",
+              "description": "short (хуки memory-compiler) + long (Wiki-LLM) + code (ontoindex) в одном проекте: хуки не конфликтуют, .gitignore согласован, сессия стартует без ошибок.",
+              "done_criteria": "Отчёт в 04_reviews: чек-лист сосуществования пройден на тестовом проекте со всеми тремя памятями, включая проверку в НОВОЙ сессии Claude (хуки/команды/MCP не конфликтуют).",
+              "task_type": "qa",
+              "realistic_h": 3,
+              "pessimistic_h": 6,
+              "estimate_h": 4.5,
+              "ai_estimate_h": 1.25,
+              "status": "todo",
+              "plane_identifier": "CBM-16"
+            },
+            {
+              "id": "t20",
+              "name": "Скриптовый регрессионный смоук режимов скила",
+              "description": "Воспроизводимый скрипт на временном репо: on → проверка инструментов/индекса → off → on → update → clear → clear --hard; проверка идемпотентности и согласованности registry. Дополняет ручную QA «новой сессией Claude».",
+              "done_criteria": "Скрипт смоука лежит в work_directory/tests/, проходит на временном репо без ручных шагов; прогон зафиксирован в отчёте.",
+              "task_type": "qa",
+              "realistic_h": 2,
+              "pessimistic_h": 4,
+              "estimate_h": 3,
+              "ai_estimate_h": 1,
+              "status": "todo",
+              "plane_identifier": "CBM-17"
+            },
+            {
+              "id": "s3.2.misc",
+              "name": "Прочие работы",
+              "task_type": "misc",
+              "auto": true,
+              "status": "done",
+              "estimate_h": 4.25,
+              "ai_estimate_h": 1.25,
+              "plane_identifier": "CBM-18"
+            }
+          ],
+          "sprint_ai_h": 5.75
+        }
+      ],
+      "epoch_ai_h": 11.25
+    },
+    {
+      "id": "e4",
+      "name": "Э4. Интеграция с workflow_global_plan",
+      "order": 4,
+      "epoch_h": 7.75,
+      "start_date": "2026-07-01",
+      "end_date": "2026-07-01",
+      "sprints": [
+        {
+          "id": "s4.1",
+          "name": "Вопрос при init + автоактивация",
+          "order": 1,
+          "sprint_h": 7.75,
+          "sprint_days": 1,
+          "start_date": "2026-07-01",
+          "end_date": "2026-07-01",
+          "tasks": [
+            {
+              "id": "t13",
+              "name": "Вопрос «Активировать кодовую память?» в фазе init",
+              "description": "Правка SKILL.md workflow_global_plan: в фазе init добавляется вопрос управленцу; ответ пишется в поле code_memory конфига 00_<slug>_config.json. Определить greenfield-поведение: init выполняется ДО появления кода/git-репо — при code_memory=true на пустом проекте активация откладывается (до publish/первого кода), это фиксируется в config. workflow_create_env НЕ трогаем (зафиксировать явно).",
+              "done_criteria": "init нового проекта задаёт вопрос; решение фиксируется в config.json (пример diff конфига в спеке задачи); greenfield-сценарий описан.",
+              "task_type": "code",
+              "realistic_h": 1.5,
+              "pessimistic_h": 3,
+              "estimate_h": 2.25,
+              "ai_estimate_h": 0.75,
+              "status": "todo",
+              "plane_identifier": "CBM-19"
+            },
+            {
+              "id": "t14",
+              "name": "Автоактивация кодовой памяти при ответе «да»",
+              "description": "init при code_memory=true вызывает memory_code_active on для папки проекта (с учётом greenfield-отложки из t13); результат активации фиксируется в config/рапорте.",
+              "done_criteria": "Сквозной тест: init тестового проекта с «да» → индекс построен, MCP зарегистрирован, инструкции установлены.",
+              "task_type": "code",
+              "realistic_h": 2.5,
+              "pessimistic_h": 5,
+              "estimate_h": 3.75,
+              "ai_estimate_h": 1.25,
+              "status": "todo",
+              "plane_identifier": "CBM-20"
+            },
+            {
+              "id": "s4.1.misc",
+              "name": "Прочие работы",
+              "task_type": "misc",
+              "auto": true,
+              "status": "done",
+              "estimate_h": 1.75,
+              "ai_estimate_h": 0.5,
+              "plane_identifier": "CBM-21"
+            }
+          ],
+          "sprint_ai_h": 2.5
+        }
+      ],
+      "epoch_ai_h": 2.5
+    },
+    {
+      "id": "e5",
+      "name": "Э5. Правила использования, пилот и сдача",
+      "order": 5,
+      "epoch_h": 21,
+      "start_date": "2026-07-02",
+      "end_date": "2026-07-06",
+      "sprints": [
+        {
+          "id": "s5.1",
+          "name": "Правила для Claude + пилот",
+          "order": 1,
+          "sprint_h": 15.5,
+          "sprint_days": 2,
+          "start_date": "2026-07-02",
+          "end_date": "2026-07-03",
+          "tasks": [
+            {
+              "id": "t15",
+              "name": "Финализация инструкций «как Claude обязан использовать ontoindex» (v0→v1)",
+              "description": "Финализация черновика v0 из t08 (адаптация апстрим-шаблона Always/Never): маппинг операций на MCP-инструменты (определение/использования → search/context; перед правкой функции/класса → impact; перед рефакторингом → callers/callees, evidence); антипаттерны (слепой Grep/Read); правило «только доверенные репозитории» (F5); tool output трактуется как недоверенный контент; запрет семантического режима без HF_HUB_OFFLINE/предзагрузки модели (см. t04); зафиксировать ограничение: обязательность ИНСТРУКЦИОННАЯ + мягкий augment-хук (t11), не технический блок.",
+              "done_criteria": "Инструкция v1 ставится режимом on; чек-лист из 3–4 сценариев пройден по транскрипту (поиск определения; правка функции с impact; рефакторинг с callers/callees; антипаттерн «Grep вместо search» не воспроизводится).",
+              "task_type": "code",
+              "realistic_h": 2,
+              "pessimistic_h": 4,
+              "estimate_h": 3,
+              "ai_estimate_h": 1,
+              "status": "todo",
+              "plane_identifier": "CBM-22"
+            },
+            {
+              "id": "t16",
+              "name": "Пилот на реальном проекте",
+              "description": "Активировать кодовую память на пилотном проекте — ЭТОТ репо (code_base_memory, решение O5 2026-06-12); выполнить 2–3 реальные кодовые задачи с использованием ontoindex; включить тест-кейс prompt-injection (вредоносный комментарий в индексируемом коде — проверить поведение агента); зафиксировать наблюдения, доводка инструкций.",
+              "done_criteria": "Отчёт в 04_reviews: примеры использования, замеченные проблемы, внесённые правки инструкций.",
+              "task_type": "qa",
+              "realistic_h": 6,
+              "pessimistic_h": 12,
+              "estimate_h": 9,
+              "ai_estimate_h": 2.5,
+              "status": "todo",
+              "plane_identifier": "CBM-23"
+            },
+            {
+              "id": "s5.1.misc",
+              "name": "Прочие работы",
+              "task_type": "misc",
+              "auto": true,
+              "status": "done",
+              "estimate_h": 3.5,
+              "ai_estimate_h": 1,
+              "plane_identifier": "CBM-24"
+            }
+          ],
+          "sprint_ai_h": 4.5
+        },
+        {
+          "id": "s5.2",
+          "name": "Документация и сдача",
+          "order": 2,
+          "sprint_h": 5.5,
+          "sprint_days": 1,
+          "start_date": "2026-07-06",
+          "end_date": "2026-07-06",
+          "tasks": [
+            {
+              "id": "t17",
+              "name": "README и документация скила",
+              "description": "Установка движка, режимы скила, ограничения (Windows/node-gyp, AGPL-нюанс, только доверенные репо, лимиты больших репозиториев + .ontoindexignore), связь с workflow_global_plan.",
+              "done_criteria": "README в репо покрывает установку с нуля на чистой машине; AGPL-раздел присутствует.",
+              "task_type": "doc",
+              "realistic_h": 2,
+              "pessimistic_h": 3.5,
+              "estimate_h": 2.75,
+              "ai_estimate_h": 1,
+              "status": "todo",
+              "plane_identifier": "CBM-25"
+            },
+            {
+              "id": "t18",
+              "name": "Запись в орг-память + финальный рапорт",
+              "description": "Инжест итогов проекта в орг-долгосрочную память (cerebro); финальный рапорт управленцу.",
+              "done_criteria": "Запись в орг-памяти (id инжеста зафиксирован); финальный рапорт в work_directory/00_global_plan/reports/<дата>.md.",
+              "task_type": "doc",
+              "realistic_h": 1,
+              "pessimistic_h": 2,
+              "estimate_h": 1.5,
+              "ai_estimate_h": 0.5,
+              "status": "todo",
+              "plane_identifier": "CBM-26"
+            },
+            {
+              "id": "s5.2.misc",
+              "name": "Прочие работы",
+              "task_type": "misc",
+              "auto": true,
+              "status": "done",
+              "estimate_h": 1.25,
+              "ai_estimate_h": 0.5,
+              "plane_identifier": "CBM-27"
+            }
+          ],
+          "sprint_ai_h": 2
+        }
+      ],
+      "epoch_ai_h": 6.5
+    }
+  ]
+}
