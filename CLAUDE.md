@@ -1,4 +1,4 @@
-﻿# code_base_memory
+# code_base_memory
 
 Проект: универсальный скил памяти кодовой базы `memory_code_active` на базе локально
 вендоренного ontoindex (срез апстрим-коммита b373fdf, AGPL-3.0).
@@ -49,4 +49,3 @@ Never:
 Стейл-индекс: после commit/merge хук напомнит — предложи `/memory_code_active update`.
 Обязательность — инструкционная + мягкий augment-хук; технического блока нет.
 <!-- MEMORY_CODE:END -->
-
