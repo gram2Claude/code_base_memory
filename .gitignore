@@ -7,3 +7,4 @@
 
 # CI-артефакт движка (доставляется release-asset, не в git)
 ontoindex/ontoindex/engine-bundle.tgz
+.gstack/
