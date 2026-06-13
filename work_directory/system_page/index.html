@@ -564,8 +564,10 @@ footer a{color:var(--green);text-decoration:none;}
       <div class="diagram-caption">
         <b style="color:#38bdf8">augment</b> мягко направляет к графу: когда Claude всё же ищет
         текстом, к результату подмешивается граф-контекст. <b style="color:#f59e0b">stale-детект</b>
-        после commit/merge сверяет <code>git HEAD</code> с индексом и напоминает
-        <span class="g">переиндексировать</span>.
+        после commit/merge <b>и серии правок</b> сверяет состояние с индексом и напоминает
+        <span class="g">переиндексировать</span> — а инструкция велит сверять свежесть через
+        <code>gn_ensure_fresh</code> до того, как довериться графу (lazy-reindex; авто-reindex
+        в той же сессии невозможен — write-lock БД).
       </div>
     </div>
   </section>
@@ -591,6 +593,11 @@ footer a{color:var(--green);text-decoration:none;}
       <div class="trig-row t-keep">
         <span class="layer">update</span>
         <span class="who">переиндексация до текущего состояния кода (по напоминанию stale-хука)</span>
+        <span class="ty"><span class="dot" style="background:var(--t-auto)"></span>обновляет</span>
+      </div>
+      <div class="trig-row t-keep">
+        <span class="layer">reapply</span>
+        <span class="who">обновляет регистрацию (хуки/инструкции/.mcp.json) без переиндексации — донести апдейт скила в активный проект</span>
         <span class="ty"><span class="dot" style="background:var(--t-auto)"></span>обновляет</span>
       </div>
       <div class="trig-row t-keep">

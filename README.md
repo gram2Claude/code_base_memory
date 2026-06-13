@@ -15,7 +15,7 @@
 | `ontoindex/_upstream_docs/` | Нейтрализованные агент-конфиги апстрима (CLAUDE.md, .mcp.json и пр.) — справочно, им не следовать |
 | `tools/install.ps1` | Установка глобального движка в `~/.claude/tools/ontoindex` + скил в `~/.claude/skills/` + шим `ontoindex` |
 | `tools/update.ps1` | Обновление движка из среза (индексы проектов не трогает) |
-| `tools/memory_code.ps1` | Детерминированный движок режимов скила (on/off/clear/clear-hard/update/status) |
+| `tools/memory_code.ps1` | Детерминированный движок режимов скила (on/off/clear/clear-hard/update/reapply/status) |
 | `tools/templates/claude_block.md` | Канонический блок инструкций для CLAUDE.md проекта |
 | `skills/memory_code_active/SKILL.md` | Источник скила Claude Code |
 | `.github/workflows/build-engine.yml` | CI-сборка нативного бандла (см. «Установка без MSVC») |
@@ -57,9 +57,10 @@ powershell -ExecutionPolicy Bypass -File tools\install.ps1 -Prebuilt
 
 | Команда | Действие |
 |---|---|
-| `/memory_code_active on` | Индекс `.ontoindex/` + MCP `ontoindex` (stdio, **read-only**) + хуки (augment, stale-детект) + инструкции в CLAUDE.md + .gitignore |
+| `/memory_code_active on` | Индекс `.ontoindex/` + MCP `ontoindex` (stdio, **read-only**) + хуки (augment + stale-детект: commit/merge **и правки**) + инструкции (вкл. lazy-reindex через `gn_ensure_fresh`) в CLAUDE.md + .gitignore |
 | `/memory_code_active off` | Снять MCP/хуки/инструкции; индекс сохранить |
 | `/memory_code_active update` | Переиндексация (после крупных правок/merge; закрыть MCP-сессии — DB lock) |
+| `/memory_code_active reapply` | Обновить регистрацию (хуки/инструкции/.mcp.json) без переиндексации — донести апдейт скила до уже активного проекта (нет reindex → нет DB-lock) |
 | `/memory_code_active clear` | Индекс в `.trash` (восстановимо) |
 | `/memory_code_active clear --hard` | Удалить окончательно (с подтверждением) |
 
@@ -81,7 +82,7 @@ powershell -ExecutionPolicy Bypass -File tools\install.ps1 -Prebuilt
   агента без фильтрации (prompt-injection, F5) — как и любой инструмент чтения кода.
 - Большие монорепо: добавьте `.ontoindexignore` (шаблон ставится режимом on) и смотрите
   лимиты в `ontoindex/_upstream_docs/` (GUARDRAILS).
-- Смоук режимов: `work_directory/tests/smoke_memory_code.ps1` (18 проверок).
+- Смоук режимов: `work_directory/tests/smoke_memory_code.ps1`; смоук хука свежести (edit/git staleness): `work_directory/tests/smoke_edit_hook.mjs`.
 
 ## Лицензия
 

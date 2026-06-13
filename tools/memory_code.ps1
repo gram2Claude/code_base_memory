@@ -2,7 +2,7 @@
 # Все файловые операции режимов on/off/clear/update. Вызывается скилом и смоуком (CBM-17).
 # Запуск:  powershell -ExecutionPolicy Bypass -File memory_code.ps1 -Mode on -Project <путь>
 param(
-    [Parameter(Mandatory)][ValidateSet('on','off','clear','clear-hard','update','status')]
+    [Parameter(Mandatory)][ValidateSet('on','off','clear','clear-hard','update','status','reapply')]
     [string]$Mode,
     [string]$Project = (Get-Location).Path,
     [switch]$Force,        # для clear-hard (подтверждение даёт вызывающий)
@@ -78,6 +78,17 @@ function Test-OurHook($entry) {
     return $false
 }
 
+# reapply — донести свежую регистрацию (хуки/инструкции/.mcp.json/.gitignore) до уже
+# активированного проекта без reindex: нормализуем в on + SkipAnalyze (индекс на месте,
+# DB-lock не трогаем). Требует существующий .ontoindex (иначе — сначала on).
+$Reapplied = $false
+if ($Mode -eq 'reapply') {
+    if (-not (Test-Path -LiteralPath $IdxDir)) { throw "Проект не активирован (нет .ontoindex) — сначала: /memory_code_active on" }
+    $SkipAnalyze = $true
+    $Reapplied   = $true
+    $Mode        = 'on'
+}
+
 switch ($Mode) {
 
 'on' {
@@ -115,21 +126,26 @@ switch ($Mode) {
     if (-not $set.PSObject.Properties['hooks']) { $set | Add-Member hooks ([pscustomobject]@{}) }
     $defs = @(
         @{ ev='PreToolUse';  matcher='Grep|Glob|Bash' },
-        @{ ev='PostToolUse'; matcher='Bash' }
+        @{ ev='PostToolUse'; matcher='Edit|Write|MultiEdit|Bash' }
     )
     foreach ($d in $defs) {
         $ev = $d.ev
         if (-not $set.hooks.PSObject.Properties[$ev]) { $set.hooks | Add-Member $ev @() }
         $arr = @($set.hooks.$ev)
-        $has = $false
-        foreach ($e in $arr) { if (Test-OurHook $e) { $has = $true } }
-        if (-not $has) {
+        $ours = $null
+        foreach ($e in $arr) { if (Test-OurHook $e) { $ours = $e } }
+        if ($ours) {
+            # апгрейд уже установленного проекта: держать matcher актуальным
+            # (Lever 1 добавил Edit/Write/MultiEdit к PostToolUse) — идемпотентно
+            if ($ours.PSObject.Properties['matcher']) { $ours.matcher = $d.matcher }
+            else { $ours | Add-Member matcher $d.matcher }
+        } else {
             $arr += [pscustomobject]@{
                 matcher = $d.matcher
                 hooks   = @([pscustomobject]@{ type='command'; command=(Get-HookCommand); timeout=10 })
             }
-            $set.hooks.$ev = $arr
         }
+        $set.hooks.$ev = $arr
     }
     Write-Json $SetPath $set
     # 4. CLAUDE.md — блок между маркерами (заменить, если есть)
@@ -156,7 +172,8 @@ switch ($Mode) {
         Write-Text $OiIgn "node_modules/`ndist/`nbuild/`nout/`n.git/`n.trash/`n*.min.js`n*.bundle.js`n"
     }
     Remove-UpstreamBlock
-    Write-Host "ON: index=$(Test-Path -LiteralPath $IdxDir) mcp=ok hooks=ok claude_md=ok gitignore=ok ontoindexignore=ok"
+    if ($Reapplied) { Write-Host "REAPPLY: hooks=ok claude_md=ok mcp=ok gitignore=ok (reindex пропущен; индекс не тронут)" }
+    else { Write-Host "ON: index=$(Test-Path -LiteralPath $IdxDir) mcp=ok hooks=ok claude_md=ok gitignore=ok ontoindexignore=ok" }
 }
 
 'off' {

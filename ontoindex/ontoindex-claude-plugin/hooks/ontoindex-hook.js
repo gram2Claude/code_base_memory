@@ -26,6 +26,16 @@ const AUGMENT_LOCK_STALE_MS = readIntEnv(
   300000,
 );
 
+// Edit-staleness reminder (Lever 1): after this many countable edits to indexed
+// files, and at most once per cooldown, nudge the agent that the graph is stale.
+const EDIT_REMINDER_THRESHOLD = readIntEnv('ONTOINDEX_HOOK_EDIT_THRESHOLD', 3, 1, 100);
+const EDIT_REMINDER_COOLDOWN_MS = readIntEnv(
+  'ONTOINDEX_HOOK_EDIT_COOLDOWN_MS',
+  180000,
+  30000,
+  1800000,
+);
+
 function readIntEnv(name, fallback, min, max) {
   const parsed = Number.parseInt(process.env[name] || '', 10);
   if (!Number.isFinite(parsed)) return fallback;
@@ -287,7 +297,103 @@ function handlePreToolUse(input) {
 }
 
 /**
- * PostToolUse handler — detect index staleness after git mutations.
+ * PostToolUse dispatcher.
+ *  - Bash (git mutation)      → staleness check vs last indexed commit.
+ *  - Edit/Write/MultiEdit     → in-session edit-staleness reminder (Lever 1).
+ */
+function handlePostToolUse(input) {
+  const toolName = input.tool_name || '';
+  if (toolName === 'Bash') {
+    handleGitMutation(input);
+    return;
+  }
+  if (toolName === 'Edit' || toolName === 'Write' || toolName === 'MultiEdit') {
+    handleEditMutation(input);
+  }
+}
+
+function editStatePath(repoRoot) {
+  const hash = crypto.createHash('sha256').update(repoRoot).digest('hex').slice(0, 24);
+  return path.join(os.tmpdir(), `ontoindex-hook-edits-${hash}.json`);
+}
+
+function readEditState(statePath) {
+  try {
+    const s = JSON.parse(fs.readFileSync(statePath, 'utf-8'));
+    return {
+      count: Number.isFinite(s.count) ? s.count : 0,
+      lastReminderMs: Number.isFinite(s.lastReminderMs) ? s.lastReminderMs : 0,
+    };
+  } catch {
+    return { count: 0, lastReminderMs: 0 };
+  }
+}
+
+function writeEditState(statePath, state) {
+  try {
+    fs.writeFileSync(statePath, JSON.stringify(state));
+  } catch {
+    /* best effort */
+  }
+}
+
+// Editing these areas does not change the code graph — don't count them.
+const EDIT_SKIP_RE = /[\\/](\.ontoindex|\.trash|\.git|node_modules|dist|\.history)[\\/]/i;
+
+/**
+ * Edit/Write/MultiEdit handler — track edits to indexed files and (debounced)
+ * remind that the graph predates them. In-session reindex is impossible (the
+ * MCP holds the LadybugDB write-lock), so the actionable advice is: for files
+ * edited this session trust the file over the graph, and reindex next session.
+ */
+function handleEditMutation(input) {
+  if (process.env.ONTOINDEX_HOOK_EDIT_REMINDER === '0') return;
+
+  const cwd = input.cwd || process.cwd();
+  if (!path.isAbsolute(cwd)) return;
+  const ontoIndexDir = findOntoIndexDir(cwd);
+  if (!ontoIndexDir) return;
+  const repoRoot = path.dirname(ontoIndexDir);
+
+  const filePath = (input.tool_input || {}).file_path || '';
+  if (!filePath || !path.isAbsolute(filePath)) return;
+  const rel = path.relative(repoRoot, filePath);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) return; // outside the indexed repo
+  if (EDIT_SKIP_RE.test(filePath)) return;
+
+  const now = Date.now();
+  const statePath = editStatePath(repoRoot);
+  const state = readEditState(statePath);
+  state.count += 1;
+
+  if (state.count < EDIT_REMINDER_THRESHOLD || now - state.lastReminderMs < EDIT_REMINDER_COOLDOWN_MS) {
+    writeEditState(statePath, state);
+    return;
+  }
+
+  let lastCommit = '';
+  try {
+    const meta = JSON.parse(fs.readFileSync(path.join(ontoIndexDir, 'meta.json'), 'utf-8'));
+    lastCommit = meta.lastCommit || '';
+  } catch {
+    /* no meta — omit commit hint */
+  }
+
+  const edited = state.count;
+  writeEditState(statePath, { count: 0, lastReminderMs: now });
+
+  sendHookResponse(
+    'PostToolUse',
+    `OntoIndex: ${edited} file edit(s) since the last index` +
+      `${lastCommit ? ` (indexed at ${lastCommit.slice(0, 7)})` : ''}. ` +
+      'The code graph (impact/search/inspect/gn_*) does NOT reflect these edits — ' +
+      'for files changed this session trust the file contents over the graph. ' +
+      'Re-index before the next session: run `/memory_code_active update`.',
+  );
+}
+
+/**
+ * Bash/git handler — detect index staleness after git mutations.
  *
  * Instead of spawning a full `ontoindex analyze` synchronously (which blocks
  * the agent for up to 120s and risks LadybugDB corruption on timeout), we do a
@@ -295,10 +401,7 @@ function handlePreToolUse(input) {
  * lastCommit stored in `.ontoindex/meta.json`. If they differ, notify the
  * agent so it can decide when to reindex.
  */
-function handlePostToolUse(input) {
-  const toolName = input.tool_name || '';
-  if (toolName !== 'Bash') return;
-
+function handleGitMutation(input) {
   const command = (input.tool_input || {}).command || '';
   if (!/\bgit\s+(commit|merge|rebase|cherry-pick|pull)(\s|$)/.test(command)) return;
 
