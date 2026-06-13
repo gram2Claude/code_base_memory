@@ -33,7 +33,11 @@ try {
     Assert (@($set.hooks.PreToolUse).Count -eq 2) 'on: PreToolUse = чужой + наш'
     Assert (@($set.hooks.PostToolUse).Count -eq 1) 'on: PostToolUse наш'
     Assert (@($set.hooks.PostToolUse)[0].matcher -eq 'Edit|Write|MultiEdit|Bash') 'on: PostToolUse matcher = Edit|Write|MultiEdit|Bash (Lever 1)'
-    Assert (@($set.hooks.SessionStart).Count -eq 1) 'on: чужой SessionStart жив'
+    Assert (@($set.hooks.SessionStart).Count -eq 2) 'on: SessionStart = чужой + наш (CBM-31)'
+    $ssOurs = @($set.hooks.SessionStart | Where-Object { ((@($_.hooks).command) -join ' ') -match 'ontoindex-hook' })
+    Assert ($ssOurs.Count -eq 1) 'on: наш SessionStart-хук (auto-reindex) зарегистрирован'
+    $ssForeign = @($set.hooks.SessionStart | Where-Object { ((@($_.hooks).command) -join ' ') -match 'echo foreign' })
+    Assert ($ssForeign.Count -eq 1) 'on: чужой SessionStart жив'
     Assert ((Get-Content CLAUDE.md -Raw) -match 'MEMORY_CODE:BEGIN') 'on: блок в CLAUDE.md'
     Assert ((Get-Content .gitignore) -contains '.ontoindex/') 'on: .gitignore'
     Assert (Test-Path .ontoindexignore) 'on: .ontoindexignore создан'
@@ -46,6 +50,7 @@ try {
     $set = Get-Content .claude\settings.json -Raw | ConvertFrom-Json
     $md = Get-Content CLAUDE.md -Raw
     Assert (@($set.hooks.PreToolUse).Count -eq 2) 'on x2: хуки не задвоились'
+    Assert (@($set.hooks.SessionStart).Count -eq 2) 'on x2: SessionStart не задвоился'
     Assert (([regex]::Matches($md, 'MEMORY_CODE:BEGIN')).Count -eq 1) 'on x2: блок один'
 
     Write-Host "== апгрейд matcher (старая установка с matcher=Bash) =="
@@ -81,6 +86,7 @@ try {
     $mcpGone = -not (Test-Path .mcp.json) -or -not ((Get-Content .mcp.json -Raw | ConvertFrom-Json).mcpServers.PSObject.Properties['ontoindex'])
     Assert $mcpGone 'off: mcp снят'
     Assert (@($set.hooks.PreToolUse).Count -eq 1 -and $set.hooks.PreToolUse[0].hooks[0].command -eq 'echo foreign-pre') 'off: наш хук снят, чужой жив'
+    Assert (@($set.hooks.SessionStart).Count -eq 1 -and $set.hooks.SessionStart[0].hooks[0].command -eq 'echo foreign') 'off: наш SessionStart снят, чужой жив'
     Assert (-not $set.hooks.PSObject.Properties['PostToolUse']) 'off: PostToolUse снят'
     Assert (-not ((Get-Content CLAUDE.md -Raw) -match 'MEMORY_CODE')) 'off: блок убран'
     Assert (Test-Path .ontoindex) 'off: индекс сохранён'

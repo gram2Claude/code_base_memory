@@ -4,18 +4,25 @@
  *
  * PreToolUse  — intercepts Grep/Glob/Bash searches and augments
  *               with graph context from the OntoIndex index.
- * PostToolUse — detects stale index after git mutations and notifies
+ * PostToolUse — detects stale index after git mutations / edits and notifies
  *               the agent to reindex.
+ * SessionStart — when the index is stale (HEAD ≠ last indexed commit), kicks off
+ *               a DETACHED background `analyze` (fire-and-forget) so the NEXT
+ *               session opens on a fresh graph. The current session's MCP already
+ *               holds the previous snapshot and won't pick up the rewrite.
  *
- * NOTE: SessionStart hooks are broken on Windows (Claude Code bug #23576).
- * Session context is injected via CLAUDE.md / skills instead.
+ * Validated 2026-06-14 (CBM-31): SessionStart hooks DO fire on this Windows
+ * machine and Claude Code does NOT reap the hook's detached children — the
+ * earlier bug #23576 (freeze) did not reproduce. A synchronous reindex is still
+ * unsafe inside a session hook (15s timeout + bug #41577 kills heavy work), hence
+ * the detached worker that survives the hook returning exit 0.
  */
 
 const fs = require('fs');
 const crypto = require('crypto');
 const os = require('os');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const { spawnSync, spawn } = require('child_process');
 
 const AUGMENT_TIMEOUT_MS = readIntEnv('ONTOINDEX_HOOK_AUGMENT_TIMEOUT_MS', 2000, 250, 10000);
 const AUGMENT_COOLDOWN_MS = readIntEnv('ONTOINDEX_HOOK_AUGMENT_COOLDOWN_MS', 30000, 0, 300000);
@@ -35,6 +42,15 @@ const EDIT_REMINDER_COOLDOWN_MS = readIntEnv(
   30000,
   1800000,
 );
+
+// SessionStart auto-reindex (CBM-31): when the graph predates HEAD, spawn a
+// DETACHED `analyze` so the NEXT session opens fresh. A cross-session lock file
+// prevents two concurrent sessions from reindexing the same repo twice; the
+// detached worker retries on DB-lock contention with a linear backoff.
+const REINDEX_LOCK_STALE_MS = readIntEnv('ONTOINDEX_HOOK_REINDEX_LOCK_STALE_MS', 900000, 60000, 3600000);
+const REINDEX_MAX_ATTEMPTS = readIntEnv('ONTOINDEX_HOOK_REINDEX_MAX_ATTEMPTS', 5, 1, 20);
+const REINDEX_BACKOFF_MS = readIntEnv('ONTOINDEX_HOOK_REINDEX_BACKOFF_MS', 5000, 500, 60000);
+const REINDEX_WORKER_TIMEOUT_MS = readIntEnv('ONTOINDEX_HOOK_REINDEX_TIMEOUT_MS', 300000, 30000, 1800000);
 
 function readIntEnv(name, fallback, min, max) {
   const parsed = Number.parseInt(process.env[name] || '', 10);
@@ -196,8 +212,12 @@ function finishAugment(paths) {
  * SECURITY: Never use shell: true with user-controlled arguments.
  * On Windows, invoke ontoindex.cmd directly (no shell needed).
  */
-function runOntoIndexCli(args, cwd, timeout) {
+function runOntoIndexCli(args, cwd, timeout, opts = {}) {
   const isWin = process.platform === 'win32';
+  // opts (additive) lets the SessionStart reindex worker raise maxBuffer and
+  // drop stdout — a long `analyze` can emit >1MB and would otherwise trip the
+  // default maxBuffer and look like a failure. Default behaviour unchanged.
+  const spawnOpts = { encoding: 'utf-8', timeout, cwd, stdio: ['pipe', 'pipe', 'pipe'], ...opts };
 
   // CBM review fix (major #1): на Windows НЕ зовём ontoindex.cmd напрямую —
   // spawnSync('.cmd') без shell на Node >=20.12/24 возвращает EINVAL
@@ -216,12 +236,7 @@ function runOntoIndexCli(args, cwd, timeout) {
       /* not on PATH */
     }
     if (useDirectBinary) {
-      return spawnSync('ontoindex', args, {
-        encoding: 'utf-8',
-        timeout,
-        cwd,
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
+      return spawnSync('ontoindex', args, spawnOpts);
     }
   }
   // CBM-2: network npx fallback removed — fall back to the vendored local
@@ -241,12 +256,7 @@ function runOntoIndexCli(args, cwd, timeout) {
   if (!fs.existsSync(engineCli)) {
     return { status: 1, stdout: '', stderr: `ontoindex engine not found: ${engineCli}` };
   }
-  return spawnSync(process.execPath, [engineCli, ...args], {
-    encoding: 'utf-8',
-    timeout,
-    cwd,
-    stdio: ['pipe', 'pipe', 'pipe'],
-  });
+  return spawnSync(process.execPath, [engineCli, ...args], spawnOpts);
 }
 
 /**
@@ -451,10 +461,204 @@ function handleGitMutation(input) {
   );
 }
 
+/**
+ * SessionStart handler — auto-reindex on a stale graph (CBM-31).
+ *
+ * Cheap staleness check (HEAD vs meta.lastCommit, identical to handleGitMutation).
+ * If stale, kick off a DETACHED `analyze` and return immediately so session start
+ * is never blocked (a synchronous reindex would hit the hook timeout and bug
+ * #41577). The rebuilt graph lands in the NEXT session: this session's MCP already
+ * holds the previous snapshot and will not pick up the on-disk rewrite. Lever 1
+ * (in-session edit reminder) therefore stays — it covers what this cannot.
+ */
+function handleSessionStart(input) {
+  if (process.env.ONTOINDEX_HOOK_SESSIONSTART_REINDEX === '0') return;
+
+  const cwd = input.cwd || process.cwd();
+  if (!path.isAbsolute(cwd)) return;
+  const ontoIndexDir = findOntoIndexDir(cwd);
+  if (!ontoIndexDir) return;
+  const repoRoot = path.dirname(ontoIndexDir);
+
+  let currentHead = '';
+  try {
+    const headResult = spawnSync('git', ['rev-parse', 'HEAD'], {
+      encoding: 'utf-8',
+      timeout: 3000,
+      cwd: repoRoot,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    currentHead = (headResult.stdout || '').trim();
+  } catch {
+    return;
+  }
+  if (!currentHead) return;
+
+  let lastCommit = '';
+  try {
+    const meta = JSON.parse(fs.readFileSync(path.join(ontoIndexDir, 'meta.json'), 'utf-8'));
+    lastCommit = meta.lastCommit || '';
+  } catch {
+    /* no meta — treat as stale */
+  }
+
+  if (currentHead && currentHead === lastCommit) return; // fresh — nothing to do
+
+  const spawned = spawnDetachedReindex(repoRoot);
+  const indexedAt = lastCommit ? lastCommit.slice(0, 7) : 'never';
+
+  if (spawned) {
+    sendHookResponse(
+      'SessionStart',
+      `OntoIndex: code graph was stale (indexed ${indexedAt}, HEAD ${currentHead.slice(0, 7)}). ` +
+        'A background re-index has been started; it will be ready in the NEXT session. ' +
+        'For THIS session the graph still reflects the previous index — trust file ' +
+        'contents over the graph (impact/search/inspect/gn_*) for anything changed since.',
+    );
+  } else {
+    sendHookResponse(
+      'SessionStart',
+      `OntoIndex: code graph is stale (indexed ${indexedAt}). A re-index is already ` +
+        'running (another session) or will run next session. If it persists, run ' +
+        '`/memory_code_active update`.',
+    );
+  }
+}
+
+function reindexLockPath(repoRoot) {
+  const hash = crypto.createHash('sha256').update(repoRoot).digest('hex').slice(0, 24);
+  return path.join(os.tmpdir(), `ontoindex-hook-reindex-${hash}.lock`);
+}
+
+/**
+ * Acquire a cross-session lock and spawn the detached reindex worker.
+ * Returns true if THIS call started a reindex, false if another session already
+ * holds a fresh lock (dedup) or the spawn failed.
+ */
+function spawnDetachedReindex(repoRoot) {
+  const lockPath = reindexLockPath(repoRoot);
+  const now = Date.now();
+
+  try {
+    const lock = fs.statSync(lockPath);
+    if (now - lock.mtimeMs < REINDEX_LOCK_STALE_MS) return false; // another session is on it
+    fs.unlinkSync(lockPath); // stale — steal it
+  } catch (err) {
+    if (err && err.code !== 'ENOENT') return false;
+  }
+
+  try {
+    const fd = fs.openSync(lockPath, 'wx'); // atomic create — loses race => throws
+    try {
+      fs.writeFileSync(fd, `${process.pid}\n${now}\n${repoRoot}\n`);
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch {
+    return false; // lost the race to a concurrent session
+  }
+
+  try {
+    // Re-invoke THIS file in worker mode, detached + unref'd so it outlives the
+    // hook's exit 0. Re-assert the offline/no-telemetry gates (the worker does
+    // not inherit the MCP server's .mcp.json env) — defense in depth (F10).
+    const child = spawn(
+      process.execPath,
+      [__filename, '--reindex-worker', repoRoot, lockPath],
+      {
+        detached: true,
+        stdio: 'ignore',
+        cwd: repoRoot,
+        env: {
+          ...process.env,
+          ONTOINDEX_DISABLE_SEMANTIC: '1',
+          ONTOINDEX_TOOL_TELEMETRY: '0',
+          ONTOINDEX_QUERY_LOG: '0',
+          HF_HUB_OFFLINE: '1',
+          TRANSFORMERS_OFFLINE: '1',
+        },
+      },
+    );
+    child.unref();
+    return true;
+  } catch {
+    try {
+      fs.unlinkSync(lockPath);
+    } catch {
+      /* best effort */
+    }
+    return false;
+  }
+}
+
+/**
+ * Detached worker entry — runs `analyze .` (never --embeddings: semantic mode is
+ * gated, F10), retrying ONLY on DB-lock contention with a linear backoff, then
+ * releases the cross-session lock. Runs in its own process (unref'd from the
+ * SessionStart hook) so it survives the hook returning exit 0.
+ */
+function runReindexWorker(repoRoot, lockPath) {
+  let status = 'failed';
+  let attempts = 0;
+  try {
+    for (let attempt = 1; attempt <= REINDEX_MAX_ATTEMPTS; attempt++) {
+      attempts = attempt;
+      const r = runOntoIndexCli(['analyze', '.'], repoRoot, REINDEX_WORKER_TIMEOUT_MS, {
+        maxBuffer: 64 * 1024 * 1024,
+        stdio: ['ignore', 'ignore', 'pipe'],
+      });
+      if (!r.error && r.status === 0) {
+        status = 'ok';
+        break;
+      }
+      const out = `${r.stderr || ''}${r.error ? ` ${r.error.message}` : ''}`;
+      const lockBusy = /lock|EBUSY|in use|database is locked|LadybugDB/i.test(out);
+      if (!lockBusy || attempt === REINDEX_MAX_ATTEMPTS) {
+        status = lockBusy ? 'lock-timeout' : 'failed';
+        break;
+      }
+      sleepSync(REINDEX_BACKOFF_MS * attempt); // linear backoff
+    }
+  } finally {
+    try {
+      fs.unlinkSync(lockPath);
+    } catch {
+      /* best effort */
+    }
+    writeReindexStamp(repoRoot, status, attempts);
+  }
+}
+
+/** Block the current (detached) process for ms without burning CPU. */
+function sleepSync(ms) {
+  try {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+  } catch {
+    const until = Date.now() + ms;
+    while (Date.now() < until) {
+      /* fallback busy-wait if SharedArrayBuffer is unavailable */
+    }
+  }
+}
+
+/** Best-effort last-run stamp (tmpdir) so a background reindex can be observed. */
+function writeReindexStamp(repoRoot, status, attempts) {
+  try {
+    const hash = crypto.createHash('sha256').update(repoRoot).digest('hex').slice(0, 24);
+    fs.writeFileSync(
+      path.join(os.tmpdir(), `ontoindex-hook-reindex-${hash}.last`),
+      JSON.stringify({ pid: process.pid, t: Date.now(), iso: new Date().toISOString(), status, attempts }),
+    );
+  } catch {
+    /* best effort */
+  }
+}
+
 // Dispatch map for hook events
 const handlers = {
   PreToolUse: handlePreToolUse,
   PostToolUse: handlePostToolUse,
+  SessionStart: handleSessionStart,
 };
 
 function main() {
@@ -469,4 +673,11 @@ function main() {
   }
 }
 
-main();
+// Detached-worker mode: `node ontoindex-hook.js --reindex-worker <repoRoot> <lockPath>`.
+// Spawned (detached) by handleSessionStart; runs the background reindex instead of
+// reading a hook event from stdin. Normal hook invocation has no extra argv → main().
+if (process.argv[2] === '--reindex-worker') {
+  runReindexWorker(process.argv[3], process.argv[4]);
+} else {
+  main();
+}
