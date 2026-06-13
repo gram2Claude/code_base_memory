@@ -32,6 +32,7 @@ try {
     Assert (($mcp.mcpServers.ontoindex.args -join ' ') -notmatch 'confirm-writes') 'on: read-only (no --confirm-writes)'
     Assert (@($set.hooks.PreToolUse).Count -eq 2) 'on: PreToolUse = чужой + наш'
     Assert (@($set.hooks.PostToolUse).Count -eq 1) 'on: PostToolUse наш'
+    Assert (@($set.hooks.PostToolUse)[0].matcher -eq 'Edit|Write|MultiEdit|Bash') 'on: PostToolUse matcher = Edit|Write|MultiEdit|Bash (Lever 1)'
     Assert (@($set.hooks.SessionStart).Count -eq 1) 'on: чужой SessionStart жив'
     Assert ((Get-Content CLAUDE.md -Raw) -match 'MEMORY_CODE:BEGIN') 'on: блок в CLAUDE.md'
     Assert ((Get-Content .gitignore) -contains '.ontoindex/') 'on: .gitignore'
@@ -46,6 +47,33 @@ try {
     $md = Get-Content CLAUDE.md -Raw
     Assert (@($set.hooks.PreToolUse).Count -eq 2) 'on x2: хуки не задвоились'
     Assert (([regex]::Matches($md, 'MEMORY_CODE:BEGIN')).Count -eq 1) 'on x2: блок один'
+
+    Write-Host "== апгрейд matcher (старая установка с matcher=Bash) =="
+    # имитируем до-Lever1 установку: откатываем matcher на 'Bash' текстом (без ConvertTo-Json,
+    # чтобы не словить схлопывание одноэлементного массива), затем пере-on должен его обновить
+    $sp = Resolve-Path .claude\settings.json
+    [IO.File]::WriteAllText($sp, ([IO.File]::ReadAllText($sp)).Replace('Edit|Write|MultiEdit|Bash', 'Bash'), (New-Object Text.UTF8Encoding($false)))
+    & $MC -Mode on -Project $Tmp -SkipAnalyze | Out-Null
+    $set = Get-Content .claude\settings.json -Raw | ConvertFrom-Json
+    Assert (@($set.hooks.PostToolUse).Count -eq 1) 'upgrade: PostToolUse не задвоился'
+    Assert (@($set.hooks.PostToolUse)[0].matcher -eq 'Edit|Write|MultiEdit|Bash') 'upgrade: matcher обновлён'
+
+    Write-Host "== reapply (refresh регистрации без reindex) =="
+    # снова откатываем matcher; reapply обязан обновить хуки/блок, НЕ трогая индекс
+    [IO.File]::WriteAllText($sp, ([IO.File]::ReadAllText($sp)).Replace('Edit|Write|MultiEdit|Bash', 'Bash'), (New-Object Text.UTF8Encoding($false)))
+    & $MC -Mode reapply -Project $Tmp | Out-Null
+    $set = Get-Content .claude\settings.json -Raw | ConvertFrom-Json
+    Assert (@($set.hooks.PostToolUse)[0].matcher -eq 'Edit|Write|MultiEdit|Bash') 'reapply: matcher обновлён'
+    Assert ((Get-Content CLAUDE.md -Raw) -match 'MEMORY_CODE:BEGIN') 'reapply: блок на месте'
+    Assert (Test-Path .ontoindex) 'reapply: индекс не тронут'
+
+    Write-Host "== reapply на неактивном проекте (отказ) =="
+    $Tmp2 = Join-Path $env:TEMP ("mc_smoke2_" + (Get-Date -Format 'HHmmssfff'))
+    New-Item -ItemType Directory -Force $Tmp2 | Out-Null
+    $refusedRe = $false
+    try { & $MC -Mode reapply -Project $Tmp2 2>$null | Out-Null } catch { $refusedRe = $true }
+    Assert $refusedRe 'reapply: без .ontoindex — отказ'
+    Remove-Item $Tmp2 -Recurse -Force -Confirm:$false -ErrorAction SilentlyContinue
 
     Write-Host "== off =="
     & $MC -Mode off -Project $Tmp | Out-Null
