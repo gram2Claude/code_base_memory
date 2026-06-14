@@ -124,9 +124,13 @@ switch ($Mode) {
     $set = Read-Json $SetPath
     if ($null -eq $set) { $set = [pscustomobject]@{} }
     if (-not $set.PSObject.Properties['hooks']) { $set | Add-Member hooks ([pscustomobject]@{}) }
+    # SessionStart (CBM-31): matcher='' = любой источник старта сессии. Хук дёшево
+    # проверяет staleness и при устаревании запускает DETACHED reindex (см.
+    # ontoindex-hook.js handleSessionStart) — свежий граф к следующей сессии.
     $defs = @(
-        @{ ev='PreToolUse';  matcher='Grep|Glob|Bash' },
-        @{ ev='PostToolUse'; matcher='Edit|Write|MultiEdit|Bash' }
+        @{ ev='PreToolUse';   matcher='Grep|Glob|Bash' },
+        @{ ev='PostToolUse';  matcher='Edit|Write|MultiEdit|Bash' },
+        @{ ev='SessionStart'; matcher='' }
     )
     foreach ($d in $defs) {
         $ev = $d.ev
@@ -189,7 +193,7 @@ switch ($Mode) {
     # 2. settings.json: убрать только наши хуки
     $set = Read-Json $SetPath
     if ($set -and $set.PSObject.Properties['hooks']) {
-        foreach ($ev in @('PreToolUse','PostToolUse')) {
+        foreach ($ev in @('PreToolUse','PostToolUse','SessionStart')) {
             if ($set.hooks.PSObject.Properties[$ev]) {
                 $kept = @(); foreach ($e in @($set.hooks.$ev)) { if (-not (Test-OurHook $e)) { $kept += $e } }
                 if ($kept.Count -gt 0) { $set.hooks.$ev = $kept } else { $set.hooks.PSObject.Properties.Remove($ev) }
@@ -258,7 +262,7 @@ if(Array.isArray(j)){ const out=j.filter(e=>norm(e&&e.path)!==p); fs.writeFileSy
     $hasMcp = [bool]($mcp -and $mcp.PSObject.Properties['mcpServers'] -and $mcp.mcpServers.PSObject.Properties['ontoindex'])
     $hasHook = $false
     if ($set -and $set.PSObject.Properties['hooks']) {
-        foreach ($ev in @('PreToolUse','PostToolUse')) {
+        foreach ($ev in @('PreToolUse','PostToolUse','SessionStart')) {
             if ($set.hooks.PSObject.Properties[$ev]) { foreach ($e in @($set.hooks.$ev)) { if (Test-OurHook $e) { $hasHook = $true } } }
         }
     }
