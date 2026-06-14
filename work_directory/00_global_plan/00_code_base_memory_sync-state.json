@@ -1,7 +1,7 @@
 {
   "pending_registry_done": [],
   "branch_sha": {
-    "main": "70e0ff9ea6326e3cfe539104bffe0df33493537c"
+    "main": "9e9475318bade961a028d4eec53fa81706394d41"
   },
   "snapshot": {
     "total_h": 99.75,
@@ -14,7 +14,7 @@
     "delta_days": 0,
     "overdue": [],
     "unplanned": {
-      "n": 0,
+      "n": 4,
       "minutes": 0
     },
     "health": {
@@ -24,6 +24,6 @@
       "baseline_status": "ok"
     }
   },
-  "last_sync": "2026-06-12T19:34:11.388Z",
+  "last_sync": "2026-06-14T05:00:06.762Z",
   "target_branch": "main"
 }
